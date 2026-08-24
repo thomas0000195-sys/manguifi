@@ -80,7 +80,58 @@ export async function exportOrgDataAction() {
       org,
       sites,
       teams,
-      employees,
+      employees: employees.map((e) => ({
+        ...e,
+        photoUrl: e.photoUrl ? decryptDataUrl(e.photoUrl) : null,
+      })),
+      attendances: attendances.map((a) => ({
+        ...a,
+        photoDataUrl: a.photoDataUrl ? decryptDataUrl(a.photoDataUrl) : null,
+      })),
+      justificatifs: justificatifs.map((j) => ({
+        ...j,
+        documentDataUrl: decryptDataUrl(j.documentDataUrl),
+      })),
+      overtimes,
+    },
+    null,
+    2
+  );
+}
+
+/**
+ * RGPD — droit à la portabilité des données pour un employé précis (par
+ * opposition à exportOrgDataAction qui exporte tout). Accessible à
+ * ADMIN/RESPONSABLE dans leur périmètre, pour répondre à une demande
+ * d'un employé sans avoir à extraire toute l'organisation.
+ */
+export async function exportEmployeeDataAction(employeeId: string) {
+  const session = await requireSession();
+  const { assertEmployeeInScope } = await import("@/lib/guard");
+  const employee = await assertEmployeeInScope(
+    { orgId: session.orgId, role: session.role, id: session.userId },
+    employeeId
+  );
+
+  const [attendances, justificatifs, overtimes] = await Promise.all([
+    prisma.attendance.findMany({ where: { employeeId } }),
+    prisma.justificatif.findMany({ where: { employeeId } }),
+    prisma.overtimeRecord.findMany({ where: { employeeId } }),
+  ]);
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "EXPORT_EMPLOYEE_DATA",
+    entityType: "Employee",
+    entityId: employeeId,
+    details: `${employee.firstName} ${employee.lastName}`,
+  });
+
+  return JSON.stringify(
+    {
+      exportedAt: new Date().toISOString(),
+      employee: { ...employee, photoUrl: employee.photoUrl ? decryptDataUrl(employee.photoUrl) : null },
       attendances: attendances.map((a) => ({
         ...a,
         photoDataUrl: a.photoDataUrl ? decryptDataUrl(a.photoDataUrl) : null,

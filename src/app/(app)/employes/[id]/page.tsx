@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import ProfileCard from "./ProfileCard";
 import EmployeeAccountPanel from "./EmployeeAccountPanel";
 import EmployeePhotoUpload from "./EmployeePhotoUpload";
+import ExportEmployeeDataButton from "./ExportEmployeeDataButton";
 
 export default async function EmployeeProfilePage({
   params,
@@ -57,6 +58,12 @@ export default async function EmployeeProfilePage({
           <p className="text-sm text-muted">
             {employee.position || "—"} · {employee.team.name}
           </p>
+        </div>
+        <div className="ml-auto">
+          <ExportEmployeeDataButton
+            employeeId={employee.id}
+            fileName={`manguifi-${employee.matricule}`}
+          />
         </div>
       </div>
 
