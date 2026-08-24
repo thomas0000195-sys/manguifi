@@ -1,0 +1,300 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  RESPONSABLE
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ACTIF
+  INACTIF
+}
+
+enum InvitationStatus {
+  EN_ATTENTE
+  ACTIVE
+}
+
+enum PunchType {
+  ARRIVEE
+  DEPART
+}
+
+enum ConfidenceLevel {
+  ELEVE
+  A_VERIFIER
+}
+
+enum JustificatifMotif {
+  MALADIE
+  CONGE_PAYE
+  CONGE_SANS_SOLDE
+  AUTORISATION_EXCEPTIONNELLE
+  DEUIL
+  AUTRE
+}
+
+enum JustificatifStatus {
+  EN_ATTENTE
+  JUSTIFIE
+  REFUSE
+  NON_JUSTIFIEE_DEFINITIVE
+}
+
+enum PayType {
+  PAYE
+  NON_PAYE
+}
+
+enum OvertimeStatus {
+  NON_PLANIFIEE
+  PLANIFIEE_A_L_AVANCE
+  VALIDEE
+  REJETEE
+}
+
+model Organization {
+  id                        String   @id @default(cuid())
+  name                      String
+  createdAt                 DateTime @default(now())
+  photoOnPunchEnabled       Boolean  @default(true)
+  allowedTimeWindowEnabled  Boolean  @default(false)
+  allowedTimeWindowStart    String?
+  allowedTimeWindowEnd      String?
+  hapticFeedbackEnabled     Boolean  @default(true)
+  toleranceMinutes          Int      @default(10)
+  justificationDelayDays    Int      @default(3)
+  onboardingCompleted       Boolean  @default(false)
+  isDemo                    Boolean  @default(false)
+  matriculePrefix           String   @default("MGF")
+  employeeSequence          Int      @default(0)
+  idNumberEnabled           Boolean  @default(false)
+
+  sites         Site[]
+  teams         Team[]
+  employees     Employee[]
+  users         User[]
+  schedules     Schedule[]
+  attendances   Attendance[]
+  justificatifs Justificatif[]
+  auditLogs     AuditLog[]
+  overtimes     OvertimeRecord[]
+}
+
+model Site {
+  id              String   @id @default(cuid())
+  orgId           String
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name            String
+  address         String?
+  latitude        Float?
+  longitude       Float?
+  radiusMeters    Int      @default(150)
+  qrToken         String   @unique @default(cuid())
+  qrRegeneratedAt DateTime?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  teams       Team[]
+  attendances Attendance[]
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  siteId    String
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  employees     Employee[]
+  schedules     Schedule[]
+  responsables  ResponsableTeam[]
+}
+
+model Employee {
+  id         String         @id @default(cuid())
+  orgId      String
+  org        Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  teamId     String
+  team       Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  firstName  String
+  lastName   String
+  phone      String         @unique
+  email      String?
+  position   String?
+  status     EmployeeStatus @default(ACTIF)
+  photoUrl   String?
+  matricule  String         @unique
+  dateOfBirth DateTime?
+  idNumber   String?
+  invitationStatus InvitationStatus @default(EN_ATTENTE)
+  phoneVerifiedAt  DateTime?
+  createdAt  DateTime       @default(now())
+
+  user          User?
+  schedules     Schedule[]
+  attendances   Attendance[]
+  justificatifs Justificatif[]
+  overtimes     OvertimeRecord[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email        String?  @unique
+  passwordHash String?
+  phone        String?  @unique
+  phoneVerifiedAt DateTime?
+  role         Role
+  employeeId   String?  @unique
+  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  responsableTeams ResponsableTeam[]
+  auditLogs        AuditLog[]
+  reviewedJustificatifs Justificatif[] @relation("ReviewedBy")
+  correctedAttendances  Attendance[]   @relation("CorrectedBy")
+  validatedOvertimes    OvertimeRecord[] @relation("ValidatedBy")
+  passwordResetTokens   PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+model ResponsableTeam {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+model Schedule {
+  id                String   @id @default(cuid())
+  orgId             String
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  teamId            String?
+  team              Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  employeeId        String?
+  employee          Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  daysOfWeek        String
+  startTime         String
+  endTime           String
+  toleranceMinutes  Int      @default(10)
+  createdAt         DateTime @default(now())
+}
+
+model Attendance {
+  id               String          @id @default(cuid())
+  orgId            String
+  org              Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  siteId           String
+  site             Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  type             PunchType
+  timestamp        DateTime
+  confidence       ConfidenceLevel @default(ELEVE)
+  photoDataUrl     String?
+  latitude         Float?
+  longitude        Float?
+  deviceFingerprint String?
+  isDuplicate      Boolean         @default(false)
+  isAnomaly        Boolean         @default(false)
+  anomalyType       String?
+  correctedById    String?
+  correctedBy      User?           @relation("CorrectedBy", fields: [correctedById], references: [id])
+  correctionReason String?
+  createdAt        DateTime        @default(now())
+
+  @@index([employeeId, timestamp])
+}
+
+model OvertimeRecord {
+  id              String          @id @default(cuid())
+  orgId           String
+  org             Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeId      String
+  employee        Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date            DateTime
+  plannedMinutes  Int
+  workedMinutes   Int
+  overtimeMinutes Int
+  status          OvertimeStatus  @default(NON_PLANIFIEE)
+  plannedInAdvance Boolean        @default(false)
+  validatedById   String?
+  validatedBy     User?           @relation("ValidatedBy", fields: [validatedById], references: [id])
+  validatedAt     DateTime?
+  createdAt       DateTime        @default(now())
+
+  @@unique([employeeId, date])
+}
+
+model Justificatif {
+  id            String              @id @default(cuid())
+  orgId         String
+  org           Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dateStart     DateTime
+  dateEnd       DateTime
+  motif         JustificatifMotif
+  payType       PayType             @default(NON_PAYE)
+  documentDataUrl String
+  status        JustificatifStatus  @default(EN_ATTENTE)
+  comment       String?
+  reviewedById  String?
+  reviewedBy    User?                @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  createdAt     DateTime            @default(now())
+}
+
+/**
+ * Every WhatsApp/SMS OTP verification attempt, successful or not — mainly
+ * to spot fraud/typo patterns (a number that never matches any employee,
+ * repeated failures). Deliberately NOT scoped to an Organization: an
+ * unrecognized number has no org to attach to, which is exactly the case
+ * this exists to catch.
+ */
+model PhoneVerificationAttempt {
+  id         String   @id @default(cuid())
+  phone      String
+  outcome    String
+  employeeId String?
+  createdAt  DateTime @default(now())
+
+  @@index([phone, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action     String
+  entityType String
+  entityId   String
+  details    String?
+  createdAt  DateTime @default(now())
+}
