@@ -10,12 +10,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "tsx prisma/seed.ts",
-    "test:concurrency": "tsx scripts/concurrency-test.ts",
-    "db:restore": "tsx scripts/restore-backup.ts"
+    "db:seed": "node --env-file-if-exists=.env --import tsx prisma/seed.ts",
+    "test:concurrency": "node --env-file-if-exists=.env --import tsx scripts/concurrency-test.ts",
+    "db:restore": "node --env-file-if-exists=.env --import tsx scripts/restore-backup.ts"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node --env-file-if-exists=.env --import tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
