@@ -30,6 +30,11 @@ const ACTION_LABELS: Record<string, string> = {
   REGENERATE_SITE_QR: "Régénération du QR d'un site",
   TOGGLE_SITE_ACTIVE: "Activation/désactivation d'un site",
   UPDATE_EMPLOYEE_PHOTO: "Mise à jour de la photo d'un employé",
+  EXPORT_EMPLOYEE_DATA: "Export des données d'un employé",
+  UPDATE_EMPLOYEE_PHONE: "Modification du numéro WhatsApp d'un employé",
+  LINK_WHATSAPP_PHONE: "Liaison d'un numéro WhatsApp",
+  REQUEST_DATA_DELETION: "Demande de suppression de données (employé)",
+  EXPORT_MY_DATA: "Export de ses propres données (employé)",
 };
 
 export default async function JournalPage() {

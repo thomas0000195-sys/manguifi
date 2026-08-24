@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/guard";
 import Link from "next/link";
-import { QrCode, Home, History, FileCheck2, LogOut } from "lucide-react";
+import { QrCode, Home, History, FileCheck2, LogOut, UserCircle } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import InstallPrompt from "@/components/InstallPrompt";
 
@@ -16,11 +16,16 @@ export default async function EspaceLayout({ children }: { children: React.React
           </div>
           <span className="font-semibold text-navy-900">Manguifi</span>
         </div>
-        <form action={logoutAction}>
-          <button className="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-red-600">
-            <LogOut className="h-3.5 w-3.5" /> Déconnexion
-          </button>
-        </form>
+        <div className="flex items-center gap-3">
+          <Link href="/espace/compte" className="text-muted hover:text-navy-900" title="Mon compte">
+            <UserCircle className="h-5 w-5" />
+          </Link>
+          <form action={logoutAction}>
+            <button className="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-red-600">
+              <LogOut className="h-3.5 w-3.5" /> Déconnexion
+            </button>
+          </form>
+        </div>
       </header>
 
       <InstallPrompt />

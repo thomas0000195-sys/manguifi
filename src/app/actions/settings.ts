@@ -105,28 +105,19 @@ export async function exportOrgDataAction() {
  * ADMIN/RESPONSABLE dans leur périmètre, pour répondre à une demande
  * d'un employé sans avoir à extraire toute l'organisation.
  */
-export async function exportEmployeeDataAction(employeeId: string) {
-  const session = await requireSession();
-  const { assertEmployeeInScope } = await import("@/lib/guard");
-  const employee = await assertEmployeeInScope(
-    { orgId: session.orgId, role: session.role, id: session.userId },
-    employeeId
-  );
-
+async function buildEmployeeDataExport(employee: {
+  id: string;
+  firstName: string;
+  lastName: string;
+  photoUrl: string | null;
+  [key: string]: unknown;
+}) {
+  const employeeId = employee.id;
   const [attendances, justificatifs, overtimes] = await Promise.all([
     prisma.attendance.findMany({ where: { employeeId } }),
     prisma.justificatif.findMany({ where: { employeeId } }),
     prisma.overtimeRecord.findMany({ where: { employeeId } }),
   ]);
-
-  await logAudit({
-    orgId: session.orgId,
-    userId: session.userId,
-    action: "EXPORT_EMPLOYEE_DATA",
-    entityType: "Employee",
-    entityId: employeeId,
-    details: `${employee.firstName} ${employee.lastName}`,
-  });
 
   return JSON.stringify(
     {
@@ -145,6 +136,78 @@ export async function exportEmployeeDataAction(employeeId: string) {
     null,
     2
   );
+}
+
+export async function exportEmployeeDataAction(employeeId: string) {
+  const session = await requireSession();
+  const { assertEmployeeInScope } = await import("@/lib/guard");
+  const employee = await assertEmployeeInScope(
+    { orgId: session.orgId, role: session.role, id: session.userId },
+    employeeId
+  );
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "EXPORT_EMPLOYEE_DATA",
+    entityType: "Employee",
+    entityId: employeeId,
+    details: `${employee.firstName} ${employee.lastName}`,
+  });
+
+  return buildEmployeeDataExport(employee);
+}
+
+/**
+ * RGPD self-service : un EMPLOYEE exporte SES PROPRES données depuis
+ * /espace, sans passer par un admin. Pas de guard IDOR nécessaire au-delà
+ * du rôle — session.employeeId identifie déjà sans ambiguïté "soi-même".
+ */
+export async function exportMyDataAction() {
+  const session = await requireSession();
+  if (session.role !== "EMPLOYEE" || !session.employeeId) {
+    throw new Error("Réservé aux comptes employé.");
+  }
+
+  const employee = await prisma.employee.findUniqueOrThrow({ where: { id: session.employeeId } });
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "EXPORT_MY_DATA",
+    entityType: "Employee",
+    entityId: employee.id,
+  });
+
+  return buildEmployeeDataExport(employee);
+}
+
+/**
+ * RGPD self-service : un EMPLOYEE demande la suppression de ses données.
+ * On ne supprime pas automatiquement — les pointages/heures sup ont une
+ * valeur légale de paie que l'entreprise peut être tenue de conserver,
+ * donc la décision finale (et son délai) reste à l'admin. Ceci se contente
+ * de tracer la demande dans le journal d'audit, visible par l'admin, pour
+ * qu'il puisse y répondre en connaissance de cause.
+ */
+export async function requestDataDeletionAction() {
+  const session = await requireSession();
+  if (session.role !== "EMPLOYEE" || !session.employeeId) {
+    throw new Error("Réservé aux comptes employé.");
+  }
+
+  const employee = await prisma.employee.findUniqueOrThrow({ where: { id: session.employeeId } });
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "REQUEST_DATA_DELETION",
+    entityType: "Employee",
+    entityId: employee.id,
+    details: `${employee.firstName} ${employee.lastName} a demandé la suppression de ses données.`,
+  });
+
+  return { success: true };
 }
 
 /**
