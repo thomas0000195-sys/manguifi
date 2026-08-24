@@ -32,9 +32,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.pathname.startsWith("/api/")) return;
 
-  // Network-first: always try the live page/data, only fall back to the
-  // cached shell if the network is genuinely unreachable (real offline).
-  event.respondWith(
-    fetch(request).catch(() => caches.match(OFFLINE_URL))
-  );
+  // Network-first: always try the live page/data. The cached shell is only
+  // a valid substitute for a navigation (someone opening/reloading a page);
+  // for sub-resources (JS/CSS chunks, fonts, etc.) a failed fetch must stay
+  // a failure — silently swapping in the HTML shell for a missing script
+  // corrupts the page instead of just showing an offline error.
+  if (request.mode === "navigate") {
+    event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
+  }
 });

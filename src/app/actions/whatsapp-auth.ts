@@ -176,6 +176,10 @@ export async function verifyLinkPhoneOtpAction(
   const code = String(formData.get("code") ?? "").trim();
   if (!e164 || !code) return { error: "Code requis." };
 
+  if (!checkRateLimit(`otp-verify:${session.userId}`, 8, 15 * 60 * 1000)) {
+    return { error: "Trop de tentatives. Réessayez dans quelques minutes." };
+  }
+
   const check = await checkOtp(e164, code);
   if (!check.approved) return { error: check.error };
 
@@ -228,6 +232,11 @@ export async function verifyLoginOtpAction(
   const e164 = String(formData.get("phone") ?? "");
   const code = String(formData.get("code") ?? "").trim();
   if (!e164 || !code) return { error: "Code requis." };
+
+  const ip = (await headers()).get("x-forwarded-for") ?? "local";
+  if (!checkRateLimit(`otp-verify:${ip}:${e164}`, 8, 15 * 60 * 1000)) {
+    return { error: "Trop de tentatives. Réessayez dans quelques minutes." };
+  }
 
   const user = await prisma.user.findFirst({
     where: { phone: e164, phoneVerifiedAt: { not: null }, role: { in: ["ADMIN", "RESPONSABLE"] } },
