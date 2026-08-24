@@ -3,8 +3,11 @@
  * /api/cron/backup (see src/app/api/cron/backup/route.ts).
  *
  * This is a DISASTER-RECOVERY tool, not something to run casually:
- * - It re-encrypts photos/documents before writing them back (the backup
- *   file holds them decrypted, for human readability).
+ * - Photos/documents in the backup file are still AES-256-GCM encrypted
+ *   (same as in the live database) — this script writes them back as-is,
+ *   no re-encryption needed. Restoring onto a different ENCRYPTION_KEY
+ *   than the one the backup was taken under will silently produce
+ *   undecryptable blobs — always restore with the same key.
  * - It refuses to run if an organization with the same id already exists,
  *   to avoid silently clobbering live data — delete it first if you really
  *   mean to replace it.
@@ -14,22 +17,8 @@
  */
 import { PrismaClient } from "@prisma/client";
 import { readFile } from "node:fs/promises";
-import crypto from "node:crypto";
 
 const prisma = new PrismaClient();
-
-const PREFIX = "enc:v1:";
-function getKey() {
-  const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
-  return crypto.createHash("sha256").update(secret).digest();
-}
-function encryptDataUrl(plain: string): string {
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv("aes-256-gcm", getKey(), iv);
-  const ciphertext = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  return `${PREFIX}${iv.toString("base64")}:${authTag.toString("base64")}:${ciphertext.toString("base64")}`;
-}
 
 async function main() {
   const file = process.argv[2];
@@ -96,7 +85,6 @@ async function main() {
           ...a,
           timestamp: new Date(a.timestamp),
           createdAt: new Date(a.createdAt),
-          photoDataUrl: a.photoDataUrl ? encryptDataUrl(a.photoDataUrl) : null,
         },
       });
     }
@@ -108,7 +96,6 @@ async function main() {
           dateEnd: new Date(j.dateEnd),
           createdAt: new Date(j.createdAt),
           reviewedAt: j.reviewedAt ? new Date(j.reviewedAt) : null,
-          documentDataUrl: encryptDataUrl(j.documentDataUrl),
         },
       });
     }

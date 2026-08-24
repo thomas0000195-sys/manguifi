@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { decryptDataUrl } from "@/lib/crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+
+const DEFAULT_RETENTION_DAYS = 30;
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,13 @@ export async function GET(req: NextRequest) {
         prisma.schedule.findMany({ where: { orgId: org.id } }),
       ]);
 
+    // Photos and documents are written to the backup file exactly as they
+    // are stored in the database — still AES-256-GCM encrypted (see
+    // lib/crypto.ts). A previous version of this route decrypted them
+    // "for readability", which meant every backup file on disk was a
+    // plaintext copy of every employee photo and justificatif document.
+    // restore-backup.ts writes them back verbatim, so no re-encryption is
+    // needed there either.
     const payload = {
       backedUpAt: new Date().toISOString(),
       org,
@@ -71,14 +79,8 @@ export async function GET(req: NextRequest) {
       users,
       responsableTeams,
       schedules,
-      attendances: attendances.map((a) => ({
-        ...a,
-        photoDataUrl: a.photoDataUrl ? decryptDataUrl(a.photoDataUrl) : null,
-      })),
-      justificatifs: justificatifs.map((j) => ({
-        ...j,
-        documentDataUrl: decryptDataUrl(j.documentDataUrl),
-      })),
+      attendances,
+      justificatifs,
       overtimes,
     };
 
@@ -88,5 +90,31 @@ export async function GET(req: NextRequest) {
     results.push({ orgId: org.id, file });
   }
 
-  return NextResponse.json({ ok: true, backedUpOrgs: results.length, files: results });
+  const deleted = await purgeOldBackups(backupDir);
+
+  return NextResponse.json({ ok: true, backedUpOrgs: results.length, files: results, deletedOldBackups: deleted });
+}
+
+/**
+ * Retention policy: backups older than BACKUP_RETENTION_DAYS (default 30)
+ * are deleted on every run. Without this, ./backups grows forever and
+ * — since each file is a near-complete snapshot of an org's data — keeps
+ * personal data around well past any reasonable retention justification.
+ */
+async function purgeOldBackups(backupDir: string): Promise<string[]> {
+  const retentionDays = Number(process.env.BACKUP_RETENTION_DAYS) || DEFAULT_RETENTION_DAYS;
+  const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+  const deleted: string[] = [];
+
+  const entries = await fs.readdir(backupDir);
+  for (const entry of entries) {
+    if (!entry.endsWith(".json")) continue;
+    const filePath = path.join(backupDir, entry);
+    const stat = await fs.stat(filePath);
+    if (stat.mtimeMs < cutoff) {
+      await fs.unlink(filePath);
+      deleted.push(entry);
+    }
+  }
+  return deleted;
 }
