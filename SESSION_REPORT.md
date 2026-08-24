@@ -25,7 +25,8 @@ Le chiffrement des données binaires sensibles (photos employé, photos de point
 - **Export individuel des données d'un employé** (`exportEmployeeDataAction`, `settings.ts`) — jusqu'ici seul un export de TOUTE l'organisation existait ; aucun moyen de répondre à une demande de portabilité pour un employé sans tout extraire. Ajouté, gardé par `assertEmployeeInScope` (IDOR), bouton dédié sur la fiche employé.
 - **Fix export organisation** — les photos de profil employé n'étaient jamais déchiffrées dans `exportOrgDataAction`, contrairement aux photos de pointage et documents justificatifs (incohérence, sans doute un oubli). Corrigé.
 - **Suppression individuelle** : `deleteEmployeeAction` existait déjà et cascade correctement (Attendance, Justificatif, OvertimeRecord, Schedule). Aucun changement nécessaire.
-- **Non traité, documenté en section 3** : pas de self-service employé (export/suppression depuis `/espace`) ; pas de politique de rétention automatique des données de pointage/justificatifs ; texte juridique de `politique-confidentialite/page.tsx` non retouché (relève de la validation légale, hors scope de cette session par les règles d'arrêt).
+- **Self-service employé** (`/espace/compte`, ajouté en cours de session) — un employé peut désormais exporter ses propres données sans passer par l'admin (`exportMyDataAction`). La suppression n'est PAS automatique : les pointages/heures sup ont une valeur légale de paie que l'entreprise peut être tenue de conserver, donc `requestDataDeletionAction` trace la demande dans le journal d'audit (nouveaux labels ajoutés) et laisse l'admin décider. Guard de session vérifié par requête authentifiée directe (200, contenu correct) ; le téléchargement réutilise le pattern déjà testé de l'export organisation.
+- **Non traité, documenté en section 3** : pas de politique de rétention automatique des données de pointage/justificatifs ; texte juridique de `politique-confidentialite/page.tsx` non retouché (relève de la validation légale, hors scope de cette session par les règles d'arrêt).
 
 ### Infra & déploiement (Phase 5, points 23-27)
 
@@ -61,7 +62,7 @@ Audit mené via relecture ciblée du code (fichiers/lignes cités dans les commi
 
 - **Isolation des rôles** : les 3 rôles (ADMIN/RESPONSABLE/EMPLOYEE) sont correctement cloisonnés par `requireUser([...])` sur chaque page, et le filtrage par équipe pour un RESPONSABLE (`getScopedTeamIds`) est appliqué partout où c'est pertinent (rapports, révision de pointage, justificatifs, heures sup). Un point de vigilance non bloquant : les actions employé ADMIN-only (`deleteEmployeeAction`, `toggleEmployeeStatusAction`, `updateEmployeePhoneAction`, `updateEmployeePhotoAction`) n'ont pas de guard IDOR par équipe — sans conséquence tant qu'elles restent ADMIN-only, mais à ajouter si un jour un RESPONSABLE obtient un droit de gestion partielle des employés.
 - **`reviewJustificatifAction`** réimplémente une vérification de scope équivalente à `assertJustificatifInScope` au lieu de l'appeler — fonctionnellement correct (le guard dédié utilise `notFound()`, pensé pour des pages, pas des server actions qui doivent retourner `{error}`), donc laissé tel quel plutôt que "corrigé" à tort.
-- **Flux de pointage** (QR par site + géolocalisation + tolérance configurable + heures sup) : déjà audité et corrigé lors d'une session précédente (bug de pointage à cheval sur minuit pour les équipes de nuit). Non retesté en profondeur cette session, faute de temps — sujet à un audit dédié si vous voulez une revue complète avant lancement.
+- **Flux de pointage** (QR par site + géolocalisation + tolérance configurable + heures sup) : déjà audité et corrigé lors d'une session précédente (bug de pointage à cheval sur minuit pour les équipes de nuit). Non retesté en profondeur cette session — j'ai tenté un test live en simulant une session employé (signature d'un JWT via le même secret que `lib/auth.ts`), mais le navigateur de prévisualisation refuse silencieusement d'écraser un cookie `manguifi_session` existant posé en `httpOnly` par une connexion réelle plus tôt dans la session (comportement standard des navigateurs : un cookie `httpOnly` ne peut pas être remplacé depuis `document.cookie`). Vérifié à la place via `curl` avec le cookie signé directement (contourne le navigateur) : le guard de session et le rendu de page fonctionnent. Le scan QR + géolocalisation lui-même (caméra, `navigator.geolocation`) n'a pas pu être testé en conditions réelles dans cet environnement automatisé — à tester manuellement sur un vrai téléphone avant lancement, comme lors des sessions précédentes.
 - **Aucune fonctionnalité V2 hors scope détectée** : recherche ciblée (bluetooth/BLE/beacon, OCR/tesseract) dans `src/` — aucun résultat. Le MVP reste bien dans son scope.
 - **Score de fiabilité par pointage, dashboard temps réel, exports/reporting, gestion multi-sites** : présents et fonctionnels d'après les sessions précédentes (vus dans le code : `confidence: "ELEVE"|"A_VERIFIER"`, `src/lib/dashboard.ts`, `src/lib/reports.ts`, gestion multi-sites via `Site`/`Team`) — pas re-testés unitairement cette session par manque de temps.
 
@@ -74,7 +75,7 @@ Audit mené via relecture ciblée du code (fichiers/lignes cités dans les commi
 3. **Hébergement + nom de domaine** — comparatif préparé (section 4), mais création de compte hébergeur + achat du domaine restent à votre charge (règle d'arrêt explicite du prompt).
 4. **Docker jamais réellement testé** — build/run jamais exécutés faute de Docker installé sur cette machine. Le Dockerfile a été relu et adapté au fil des sessions mais son premier vrai test sera sur le futur VPS. Risque à connaître avant le déploiement final.
 5. **Texte juridique** (politique de confidentialité, CGU, DPA) — reste en l'état, volontairement non retouché (validation légale = règle d'arrêt).
-6. **RGPD self-service employé** — pas d'export/suppression déclenchable par l'employé lui-même depuis `/espace`. Actuellement, ça passe forcément par une demande à l'admin. Je peux l'ajouter si vous le souhaitez (proposition en section 5).
+6. **Décision sur les demandes de suppression RGPD employé** — le mécanisme technique existe désormais (`/espace/compte`, journal d'audit), mais personne ne les traite automatiquement par design (voir section 1) : c'est un choix délibéré vu la valeur légale de paie des pointages, mais confirmez que c'est bien le comportement que vous voulez plutôt qu'une suppression automatique après délai.
 
 ---
 
@@ -101,7 +102,6 @@ Aucune vérification de disponibilité effectuée (nécessiterait d'interroger u
 - **CSP par nonce** (au lieu de `'unsafe-inline'`) via `middleware.ts` — plus strict contre l'injection de script, demande de propager un nonce par requête dans tous les `<Script>`/inline styles de l'app. Non fait cette session (changement plus large, risque de casser le rendu sans test approfondi).
 - **Chiffrement des champs identifiants en clair** (téléphone/email/idNumber/dateOfBirth) — voir point bloquant #1, section 3.
 - **Import CSV en file d'attente asynchrone** pour les très gros volumes (300-1000+ lignes) — évite tout risque de timeout, permet un rapport de progression en temps réel. Nécessite une infra de queue (Redis/BullMQ ou équivalent), non installée.
-- **RGPD self-service employé** (export/suppression depuis `/espace`) — voir point bloquant #6, section 3.
 - **Politique de rétention automatique** des pointages/justificatifs anciens (purge ou anonymisation après X mois) — actuellement rien n'expire automatiquement côté données métier (seules les sauvegardes ont désormais une rétention, section 1).
 - **Synchronisation Google Sheet / API d'import SIRH** — évoquées dans le prompt comme alternatives à l'import CSV, non implémentées (l'import CSV couvre le besoin minimum viable).
 - **`withSentryConfig`** (upload de source maps, releases automatiques) — demande un token d'auth Sentry que je n'ai pas ; à activer une fois le compte créé si vous voulez des stack traces lisibles en prod.
@@ -131,4 +131,5 @@ Aucune vérification de disponibilité effectuée (nécessiterait d'interroger u
 4. `RGPD : export individuel des données employé, fix export org (photos non déchiffrées)`
 5. `Monitoring : intègre Sentry (code prêt, inactif sans compte/DSN)`
 6. `Sauvegardes : ne plus écrire les photos/documents en clair, purge auto`
-7. *(CI + docker-compose.yml, à committer en fin de session)*
+7. `Infra : CI GitHub Actions, docker-compose à jour, rapport de session`
+8. `RGPD : self-service employé — export et demande de suppression`
