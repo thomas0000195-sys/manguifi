@@ -307,20 +307,61 @@ export async function deleteEmployeeAction(employeeId: string) {
   return { success: true };
 }
 
+const MAX_IMPORT_ROWS = 1000;
+
+const importRowSchema = z.object({
+  firstName: z.string().trim().min(1),
+  lastName: z.string().trim().min(1),
+  phone: z.string().trim().min(1),
+  email: z.string().trim().optional(),
+  position: z.string().trim().optional(),
+});
+
+export type ImportRowResult = {
+  row: number; // 1-based, matches the line the admin sees in a spreadsheet (header excluded)
+  firstName: string;
+  lastName: string;
+  status: "ok" | "error";
+  reason?: string;
+};
+
+export type ImportCsvResult =
+  | { error: string }
+  | {
+      success: true;
+      dryRun: boolean;
+      count: number;
+      skipped: number;
+      results: ImportRowResult[];
+    };
+
+/**
+ * Validates (and, unless dryRun, actually creates) a batch of employees from
+ * a parsed CSV. Always runs full validation so the UI can render a
+ * line-by-line preview before the admin commits — dryRun just skips the
+ * writes. Re-validating on the real (non-dry) call is deliberate: it's the
+ * only way to guarantee what gets created matches what was previewed, even
+ * if the underlying data (duplicate phones) shifted between the two calls.
+ */
 export async function importEmployeesCsvAction(
   rows: { firstName: string; lastName: string; phone: string; email?: string; position?: string }[],
-  teamId: string
-) {
+  teamId: string,
+  dryRun = false
+): Promise<ImportCsvResult> {
   const session = await requireSession();
   if (session.role !== "ADMIN") return { error: "Action réservée à l'administrateur." };
   if (!teamId) return { error: "Équipe requise" };
+  if (rows.length === 0) return { error: "Le fichier ne contient aucune ligne." };
+  if (rows.length > MAX_IMPORT_ROWS) {
+    return { error: `Maximum ${MAX_IMPORT_ROWS} lignes par import — divisez le fichier.` };
+  }
 
   const team = await prisma.team.findFirst({ where: { id: teamId, orgId: session.orgId } });
   if (!team) return { error: "Équipe introuvable." };
 
   const { toE164 } = await import("@/lib/phone");
-  // Phone is now globally unique (it's the WhatsApp login key), so the
-  // dedupe check has to look across the whole table, not just this org.
+  // Phone is globally unique (it's the WhatsApp login key), so the dedupe
+  // check has to look across the whole table, not just this org.
   const existingPhones = new Set(
     (await prisma.employee.findMany({ select: { phone: true } })).map((e) => e.phone)
   );
@@ -328,47 +369,79 @@ export async function importEmployeesCsvAction(
   let count = 0;
   let skipped = 0;
   const seenInFile = new Set<string>();
-  for (const row of rows) {
-    if (!row.firstName || !row.lastName || !row.phone) continue;
-    const phone = toE164(row.phone);
+  const results: ImportRowResult[] = [];
+
+  for (let i = 0; i < rows.length; i++) {
+    const rawRow = rows[i];
+    const rowNumber = i + 1;
+    const parsed = importRowSchema.safeParse(rawRow);
+    if (!parsed.success) {
+      skipped++;
+      results.push({
+        row: rowNumber,
+        firstName: rawRow.firstName ?? "",
+        lastName: rawRow.lastName ?? "",
+        status: "error",
+        reason: "Prénom, nom et téléphone sont obligatoires.",
+      });
+      continue;
+    }
+    const { firstName, lastName, phone: rawPhone, email, position } = parsed.data;
+
+    const phone = toE164(rawPhone);
     if (!phone) {
       skipped++;
+      results.push({ row: rowNumber, firstName, lastName, status: "error", reason: "Numéro de téléphone invalide." });
       continue;
     }
-    // Skip anyone already registered or duplicated within the file itself
-    // — re-importing the same CSV twice shouldn't create clones.
+
     if (existingPhones.has(phone) || seenInFile.has(phone)) {
       skipped++;
+      results.push({
+        row: rowNumber,
+        firstName,
+        lastName,
+        status: "error",
+        reason: seenInFile.has(phone) ? "Doublon dans le fichier." : "Numéro déjà utilisé par un employé existant.",
+      });
       continue;
     }
+
     seenInFile.add(phone);
-    const matricule = await generateMatricule(session.orgId);
-    await prisma.employee.create({
-      data: {
-        orgId: session.orgId,
-        teamId,
-        firstName: row.firstName,
-        lastName: row.lastName,
-        phone,
-        email: row.email || null,
-        position: row.position || null,
-        matricule,
-      },
-    });
+
+    if (!dryRun) {
+      const matricule = await generateMatricule(session.orgId);
+      await prisma.employee.create({
+        data: {
+          orgId: session.orgId,
+          teamId,
+          firstName,
+          lastName,
+          phone,
+          email: email || null,
+          position: position || null,
+          matricule,
+        },
+      });
+    }
+
     count++;
+    results.push({ row: rowNumber, firstName, lastName, status: "ok" });
   }
 
-  await logAudit({
-    orgId: session.orgId,
-    userId: session.userId,
-    action: "IMPORT_EMPLOYEES_CSV",
-    entityType: "Employee",
-    entityId: teamId,
-    details: `${count} employés importés, ${skipped} doublon(s) ignoré(s)`,
-  });
+  if (!dryRun) {
+    await logAudit({
+      orgId: session.orgId,
+      userId: session.userId,
+      action: "IMPORT_EMPLOYEES_CSV",
+      entityType: "Employee",
+      entityId: teamId,
+      details: `${count} employés importés, ${skipped} ligne(s) ignorée(s)`,
+    });
+    revalidatePath("/employes");
+  }
 
-  revalidatePath("/employes");
-  return { success: true, count, skipped };
+  return { success: true, dryRun, count, skipped, results };
 }
 
 const responsableSchema = z.object({

@@ -8,6 +8,7 @@ import {
   createEmployeeAction,
   toggleEmployeeStatusAction,
   importEmployeesCsvAction,
+  type ImportRowResult,
 } from "@/app/actions/company";
 import {
   Plus,
@@ -18,6 +19,9 @@ import {
   UserRound,
   Power,
   Camera,
+  Download,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 type Employee = {
@@ -52,6 +56,11 @@ export default function EmployeesClient({
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
   const [importTeamId, setImportTeamId] = useState(teams[0]?.id ?? "");
+  const [importPreview, setImportPreview] = useState<{
+    rows: { firstName: string; lastName: string; phone: string; email?: string; position?: string }[];
+    results: ImportRowResult[];
+  } | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const filtered = employees.filter((e) =>
     `${e.firstName} ${e.lastName} ${e.phone} ${e.team.name} ${e.matricule}`
@@ -104,17 +113,39 @@ export default function EmployeesClient({
           position: r.position || r.poste || r["Poste"] || "",
         }));
         startTransition(async () => {
-          const res = await importEmployeesCsvAction(rows, importTeamId);
-          if (res?.error) { toast.error(res.error); return; }
-          const skipped = res?.skipped ?? 0;
-          toast.success(
-            `${res?.count ?? 0} employés importés` +
-              (skipped > 0 ? ` — ${skipped} doublon(s) ignoré(s)` : "")
-          );
+          const res = await importEmployeesCsvAction(rows, importTeamId, true);
+          if ("error" in res) { toast.error(res.error); return; }
+          setImportPreview({ rows, results: res.results });
         });
       },
     });
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function confirmImport() {
+    if (!importPreview || !importTeamId) return;
+    setImporting(true);
+    startTransition(async () => {
+      const res = await importEmployeesCsvAction(importPreview.rows, importTeamId, false);
+      setImporting(false);
+      if ("error" in res) { toast.error(res.error); return; }
+      toast.success(
+        `${res.count} employé(s) importé(s)` + (res.skipped > 0 ? ` — ${res.skipped} ligne(s) ignorée(s)` : "")
+      );
+      setImportPreview(null);
+    });
+  }
+
+  function downloadCsvTemplate() {
+    const header = "Prénom,Nom,Téléphone,Email,Poste\n";
+    const example = "Fatou,Ndiaye,771234567,,Cuisinière\n";
+    const blob = new Blob(["﻿" + header + example], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "modele-import-employes-manguifi.csv";
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -126,6 +157,13 @@ export default function EmployeesClient({
         </div>
         {canManage && (
           <div className="flex items-center gap-2">
+            <button
+              onClick={downloadCsvTemplate}
+              className="flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2.5 text-sm font-medium text-navy-900 transition hover:bg-navy-50"
+              title="Télécharger le modèle CSV"
+            >
+              <Download className="h-4 w-4" />
+            </button>
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-surface px-4 py-2.5 text-sm font-medium text-navy-900 transition hover:bg-navy-50">
               <Upload className="h-4 w-4" /> Import CSV
               <input
@@ -346,6 +384,74 @@ export default function EmployeesClient({
                 Ajouter l&apos;employé
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {importPreview && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-navy-950/40 sm:items-center">
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col animate-fade-in-up rounded-t-2xl bg-surface p-6 sm:rounded-2xl">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-navy-950">Aperçu de l&apos;import</h2>
+              <button
+                onClick={() => setImportPreview(null)}
+                className="rounded-lg p-1.5 hover:bg-navy-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-muted">
+              {importPreview.results.filter((r) => r.status === "ok").length} ligne(s) valide(s) sur{" "}
+              {importPreview.results.length}. Vérifiez avant de confirmer.
+            </p>
+            <div className="mt-4 flex-1 overflow-y-auto rounded-xl border border-border">
+              <table className="w-full text-left text-xs">
+                <thead className="sticky top-0 bg-navy-50 text-navy-800">
+                  <tr>
+                    <th className="px-3 py-2 font-medium">#</th>
+                    <th className="px-3 py-2 font-medium">Nom</th>
+                    <th className="px-3 py-2 font-medium">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.results.map((r) => (
+                    <tr key={r.row} className="border-t border-border">
+                      <td className="px-3 py-2 text-muted">{r.row}</td>
+                      <td className="px-3 py-2 text-navy-900">
+                        {r.firstName} {r.lastName}
+                      </td>
+                      <td className="px-3 py-2">
+                        {r.status === "ok" ? (
+                          <span className="flex items-center gap-1 text-green-600">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Prêt
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-red-600">
+                            <AlertCircle className="h-3.5 w-3.5" /> {r.reason}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                onClick={confirmImport}
+                disabled={importing || importPreview.results.every((r) => r.status !== "ok")}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-navy-900 py-3 text-sm font-semibold text-white transition hover:bg-navy-800 disabled:opacity-70"
+              >
+                {importing && <Loader2 className="h-4 w-4 animate-spin" />}
+                Confirmer l&apos;import ({importPreview.results.filter((r) => r.status === "ok").length})
+              </button>
+              <button
+                onClick={() => setImportPreview(null)}
+                className="rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted hover:bg-navy-50"
+              >
+                Annuler
+              </button>
+            </div>
           </div>
         </div>
       )}
