@@ -24,6 +24,19 @@ import {
   AlertCircle,
 } from "lucide-react";
 
+// Matches the server's per-call cap (MAX_IMPORT_ROWS in company.ts) — large
+// files are sent in sequential chunks of this size instead of one giant
+// request, so a 1000+ row import never risks a single Server Action call
+// timing out on a constrained host.
+const IMPORT_CHUNK_SIZE = 200;
+const MAX_IMPORT_TOTAL_ROWS = 5000;
+
+function chunkRows<T>(rows: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < rows.length; i += size) chunks.push(rows.slice(i, i + size));
+  return chunks;
+}
+
 type Employee = {
   id: string;
   firstName: string;
@@ -61,6 +74,7 @@ export default function EmployeesClient({
     results: ImportRowResult[];
   } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
 
   const filtered = employees.filter((e) =>
     `${e.firstName} ${e.lastName} ${e.phone} ${e.team.name} ${e.matricule}`
@@ -112,10 +126,28 @@ export default function EmployeesClient({
           email: r.email || r["Email"] || "",
           position: r.position || r.poste || r["Poste"] || "",
         }));
+        if (rows.length > MAX_IMPORT_TOTAL_ROWS) {
+          toast.error(`Maximum ${MAX_IMPORT_TOTAL_ROWS} lignes par fichier — divisez-le.`);
+          return;
+        }
         startTransition(async () => {
-          const res = await importEmployeesCsvAction(rows, importTeamId, true);
-          if ("error" in res) { toast.error(res.error); return; }
-          setImportPreview({ rows, results: res.results });
+          const chunks = chunkRows(rows, IMPORT_CHUNK_SIZE);
+          setImportProgress({ done: 0, total: chunks.length });
+          let allResults: ImportRowResult[] = [];
+          let seenHashes: string[] = [];
+          for (let i = 0; i < chunks.length; i++) {
+            const res = await importEmployeesCsvAction(chunks[i], importTeamId, true, i * IMPORT_CHUNK_SIZE, seenHashes);
+            if ("error" in res) {
+              toast.error(res.error);
+              setImportProgress(null);
+              return;
+            }
+            allResults = allResults.concat(res.results);
+            seenHashes = seenHashes.concat(res.newPhoneHashes);
+            setImportProgress({ done: i + 1, total: chunks.length });
+          }
+          setImportPreview({ rows, results: allResults });
+          setImportProgress(null);
         });
       },
     });
@@ -126,11 +158,28 @@ export default function EmployeesClient({
     if (!importPreview || !importTeamId) return;
     setImporting(true);
     startTransition(async () => {
-      const res = await importEmployeesCsvAction(importPreview.rows, importTeamId, false);
+      const chunks = chunkRows(importPreview.rows, IMPORT_CHUNK_SIZE);
+      setImportProgress({ done: 0, total: chunks.length });
+      let totalCount = 0;
+      let totalSkipped = 0;
+      let seenHashes: string[] = [];
+      for (let i = 0; i < chunks.length; i++) {
+        const res = await importEmployeesCsvAction(chunks[i], importTeamId, false, i * IMPORT_CHUNK_SIZE, seenHashes);
+        if ("error" in res) {
+          toast.error(res.error);
+          setImporting(false);
+          setImportProgress(null);
+          return;
+        }
+        totalCount += res.count;
+        totalSkipped += res.skipped;
+        seenHashes = seenHashes.concat(res.newPhoneHashes);
+        setImportProgress({ done: i + 1, total: chunks.length });
+      }
       setImporting(false);
-      if ("error" in res) { toast.error(res.error); return; }
+      setImportProgress(null);
       toast.success(
-        `${res.count} employé(s) importé(s)` + (res.skipped > 0 ? ` — ${res.skipped} ligne(s) ignorée(s)` : "")
+        `${totalCount} employé(s) importé(s)` + (totalSkipped > 0 ? ` — ${totalSkipped} ligne(s) ignorée(s)` : "")
       );
       setImportPreview(null);
     });
@@ -150,6 +199,23 @@ export default function EmployeesClient({
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-6 sm:py-8">
+      {importProgress && importProgress.total > 1 && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 text-sm shadow-lg">
+          <Loader2 className="h-4 w-4 animate-spin text-navy-800" />
+          <div>
+            <p className="font-medium text-navy-950">
+              {importing ? "Import en cours" : "Analyse du fichier"} — lot {importProgress.done}/{importProgress.total}
+            </p>
+            <div className="mt-1 h-1.5 w-40 overflow-hidden rounded-full bg-navy-100">
+              <div
+                className="h-full rounded-full bg-navy-900 transition-all"
+                style={{ width: `${(importProgress.done / importProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-navy-950">Employés</h1>

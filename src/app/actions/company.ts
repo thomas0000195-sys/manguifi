@@ -310,7 +310,11 @@ export async function deleteEmployeeAction(employeeId: string) {
   return { success: true };
 }
 
-const MAX_IMPORT_ROWS = 1000;
+// Applies to a single call (one "chunk"). The client splits large files into
+// chunks of this size and calls the action once per chunk, so a 1000+ row
+// import never risks a single request timing out on a constrained host —
+// see EmployeesClient.tsx's handleCsv/confirmImport for the batching loop.
+const MAX_IMPORT_ROWS = 200;
 
 const importRowSchema = z.object({
   firstName: z.string().trim().min(1),
@@ -336,6 +340,10 @@ export type ImportCsvResult =
       count: number;
       skipped: number;
       results: ImportRowResult[];
+      // Phone hashes validated as unique in this chunk — pass them back in
+      // as priorChunkPhoneHashes on the next chunk's call so a duplicate
+      // split across two chunks of the same file is still caught.
+      newPhoneHashes: string[];
     };
 
 /**
@@ -349,14 +357,16 @@ export type ImportCsvResult =
 export async function importEmployeesCsvAction(
   rows: { firstName: string; lastName: string; phone: string; email?: string; position?: string }[],
   teamId: string,
-  dryRun = false
+  dryRun = false,
+  rowOffset = 0,
+  priorChunkPhoneHashes: string[] = []
 ): Promise<ImportCsvResult> {
   const session = await requireSession();
   if (session.role !== "ADMIN") return { error: "Action réservée à l'administrateur." };
   if (!teamId) return { error: "Équipe requise" };
   if (rows.length === 0) return { error: "Le fichier ne contient aucune ligne." };
   if (rows.length > MAX_IMPORT_ROWS) {
-    return { error: `Maximum ${MAX_IMPORT_ROWS} lignes par import — divisez le fichier.` };
+    return { error: `Maximum ${MAX_IMPORT_ROWS} lignes par appel — le fichier doit être envoyé par lots.` };
   }
 
   const team = await prisma.team.findFirst({ where: { id: teamId, orgId: session.orgId } });
@@ -366,9 +376,14 @@ export async function importEmployeesCsvAction(
   // Phone is globally unique (it's the WhatsApp login key), so the dedupe
   // check has to look across the whole table, not just this org. Dedupe by
   // hash since the phone column itself is encrypted (non-comparable).
+  // priorChunkPhoneHashes carries forward the hashes already validated in
+  // earlier chunks of the same file, so a duplicate split across two
+  // different chunks still gets caught (a single query per chunk can't see
+  // rows the previous chunk hasn't written yet during a dry run).
   const existingPhoneHashes = new Set(
     (await prisma.employee.findMany({ select: { phoneHash: true } })).map((e) => e.phoneHash)
   );
+  const priorChunkHashSet = new Set(priorChunkPhoneHashes);
 
   let count = 0;
   let skipped = 0;
@@ -377,7 +392,7 @@ export async function importEmployeesCsvAction(
 
   for (let i = 0; i < rows.length; i++) {
     const rawRow = rows[i];
-    const rowNumber = i + 1;
+    const rowNumber = rowOffset + i + 1;
     const parsed = importRowSchema.safeParse(rawRow);
     if (!parsed.success) {
       skipped++;
@@ -400,14 +415,16 @@ export async function importEmployeesCsvAction(
     }
     const phoneHash = hashPhone(phone);
 
-    if (existingPhoneHashes.has(phoneHash) || seenInFile.has(phoneHash)) {
+    if (existingPhoneHashes.has(phoneHash) || priorChunkHashSet.has(phoneHash) || seenInFile.has(phoneHash)) {
       skipped++;
       results.push({
         row: rowNumber,
         firstName,
         lastName,
         status: "error",
-        reason: seenInFile.has(phoneHash) ? "Doublon dans le fichier." : "Numéro déjà utilisé par un employé existant.",
+        reason: existingPhoneHashes.has(phoneHash)
+          ? "Numéro déjà utilisé par un employé existant."
+          : "Doublon dans le fichier.",
       });
       continue;
     }
@@ -447,7 +464,7 @@ export async function importEmployeesCsvAction(
     revalidatePath("/employes");
   }
 
-  return { success: true, dryRun, count, skipped, results };
+  return { success: true, dryRun, count, skipped, results, newPhoneHashes: Array.from(seenInFile) };
 }
 
 const responsableSchema = z.object({
