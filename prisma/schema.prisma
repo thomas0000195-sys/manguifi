@@ -77,6 +77,11 @@ model Organization {
   matriculePrefix           String   @default("MGF")
   employeeSequence          Int      @default(0)
   idNumberEnabled           Boolean  @default(false)
+  // Purge automatique des pointages/justificatifs anciens. null = désactivé
+  // par défaut : les obligations légales de conservation des données de
+  // paie varient par pays, donc l'admin doit l'activer explicitement en
+  // connaissance de cause plutôt que de subir une suppression par défaut.
+  attendanceRetentionMonths Int?
 
   sites         Site[]
   teams         Team[]

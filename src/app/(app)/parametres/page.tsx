@@ -19,6 +19,7 @@ export default async function ParametresPage() {
         justificationDelayDays: user.org.justificationDelayDays,
         matriculePrefix: user.org.matriculePrefix,
         idNumberEnabled: user.org.idNumberEnabled,
+        attendanceRetentionMonths: user.org.attendanceRetentionMonths,
       }}
     />
   );

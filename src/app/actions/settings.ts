@@ -24,6 +24,10 @@ export async function updateSettingsAction(
   const justificationDelayDays = Number(formData.get("justificationDelayDays") || 3);
   const matriculePrefix = String(formData.get("matriculePrefix") || "MGF").trim().toUpperCase() || "MGF";
   const idNumberEnabled = formData.get("idNumberEnabled") === "on";
+  const retentionEnabled = formData.get("attendanceRetentionEnabled") === "on";
+  const attendanceRetentionMonthsRaw = Number(formData.get("attendanceRetentionMonths") || 24);
+  const attendanceRetentionMonths =
+    retentionEnabled && attendanceRetentionMonthsRaw >= 1 ? Math.floor(attendanceRetentionMonthsRaw) : null;
 
   await prisma.organization.update({
     where: { id: session.orgId },
@@ -36,6 +40,7 @@ export async function updateSettingsAction(
       justificationDelayDays,
       matriculePrefix,
       idNumberEnabled,
+      attendanceRetentionMonths,
     },
   });
 

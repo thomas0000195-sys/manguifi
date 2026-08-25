@@ -27,10 +27,12 @@ export default function ParametresClient({
     justificationDelayDays: number;
     matriculePrefix: string;
     idNumberEnabled: boolean;
+    attendanceRetentionMonths: number | null;
   };
 }) {
   const [state, formAction, pending] = useActionState(updateSettingsAction, initialState);
   const [timeWindow, setTimeWindow] = useState(org.allowedTimeWindowEnabled);
+  const [retentionEnabled, setRetentionEnabled] = useState(org.attendanceRetentionMonths != null);
   const [exporting, startExport] = useTransition();
   const isAdmin = role === "ADMIN";
 
@@ -160,6 +162,40 @@ export default function ParametresClient({
             Passé ce délai, une absence non couverte passe automatiquement en
             &laquo;&nbsp;non justifiée définitive&nbsp;&raquo;.
           </p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface p-5">
+          <h2 className="text-sm font-semibold text-navy-950">Conservation des données</h2>
+          <label className="mt-3 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-navy-900">Purge automatique</p>
+              <p className="text-xs text-muted">
+                Supprime définitivement les pointages, justificatifs et heures sup au-delà
+                d&apos;une ancienneté donnée. Désactivé par défaut — vérifiez vos obligations
+                légales de conservation des données de paie avant d&apos;activer.
+              </p>
+            </div>
+            <input
+              type="checkbox"
+              name="attendanceRetentionEnabled"
+              checked={retentionEnabled}
+              onChange={(e) => setRetentionEnabled(e.target.checked)}
+              className="mt-1 h-5 w-9 shrink-0 cursor-pointer appearance-none rounded-full bg-navy-100 transition checked:bg-green-500 relative before:absolute before:left-0.5 before:top-0.5 before:h-4 before:w-4 before:rounded-full before:bg-white before:transition checked:before:translate-x-4"
+            />
+          </label>
+          {retentionEnabled && (
+            <label className="mt-3 block text-sm text-navy-900">
+              Ancienneté maximale (mois)
+              <input
+                type="number"
+                name="attendanceRetentionMonths"
+                min={1}
+                max={120}
+                defaultValue={org.attendanceRetentionMonths ?? 24}
+                className="mt-1.5 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100"
+              />
+            </label>
+          )}
         </div>
 
         <button
