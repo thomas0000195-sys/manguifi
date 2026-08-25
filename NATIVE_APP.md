@@ -33,6 +33,14 @@ natives comme des notifications push complexes ou du offline-first avancé).
 - Scripts npm ajoutés : `npm run cap:sync`, `npm run cap:android` (ouvre Android Studio),
   `npm run cap:ios` (ouvre Xcode).
 - Build Next.js confirmé non cassé par ces ajouts.
+- **Icônes et écrans de démarrage générés** à partir du logo Manguifi déjà utilisé pour la
+  PWA (`src/lib/pwa-icon.tsx`) via `@capacitor/assets` : toutes les tailles Android (mipmap,
+  adaptive icons, splash clair/sombre par densité et orientation) et iOS (AppIcon, Splash
+  clair/sombre) sont déjà en place dans `android/` et `ios/` — plus besoin de les régénérer
+  sauf si le logo change. Sources conservées dans `assets-source/` (icon.png 1024×1024,
+  splash.png 2732×2732) pour régénérer facilement : `npx capacitor-assets generate
+  --iconBackgroundColor '#0b1a36' --iconBackgroundColorDark '#0b1a36' --splashBackgroundColor
+  '#0b1a36' --splashBackgroundColorDark '#0b1a36' --assetPath assets-source`.
 
 ## Non fait — nécessite des outils/comptes que je n'ai pas ici
 
@@ -41,7 +49,6 @@ natives comme des notifications push complexes ou du offline-first avancé).
 | Mettre à jour `server.url` avec le vrai domaine | Le domaine de production n'existe pas encore | Vous, une fois le domaine acheté et déployé |
 | Compiler l'APK/AAB Android | Java + Android SDK non installés sur cette machine | Installer **Android Studio** (inclut le SDK), puis `npm run cap:android` |
 | Compiler l'app iOS | Xcode ne tourne que sur macOS | Un Mac avec **Xcode** installé, puis `npm run cap:ios` |
-| Icônes et écrans de démarrage natifs | Génération d'assets graphiques (tailles multiples par plateforme) | Peut être fait avec `@capacitor/assets` une fois un logo haute résolution fourni |
 | Compte développeur Google Play | 25 $ US, paiement unique, création de compte | Vous — https://play.google.com/console |
 | Compte développeur Apple | 99 $ US/an, création de compte + vérification d'identité | Vous — https://developer.apple.com |
 | Signature de l'APK/AAB (keystore Android) | Génère une clé qui doit être conservée indéfiniment (perdue = plus jamais possible de mettre à jour l'app) | Vous, au moment du premier build de production, avec sauvegarde de la clé aussi critique que `ENCRYPTION_KEY` |
