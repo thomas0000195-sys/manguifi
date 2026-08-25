@@ -83,6 +83,7 @@ export async function exportOrgDataAction() {
       employees: employees.map((e) => ({
         ...e,
         phone: decryptDataUrl(e.phone),
+        email: e.email ? decryptDataUrl(e.email) : null,
         photoUrl: e.photoUrl ? decryptDataUrl(e.photoUrl) : null,
         dateOfBirth: e.dateOfBirth ? decryptDataUrl(e.dateOfBirth) : null,
         idNumber: e.idNumber ? decryptDataUrl(e.idNumber) : null,
@@ -113,6 +114,7 @@ async function buildEmployeeDataExport(employee: {
   firstName: string;
   lastName: string;
   phone: string;
+  email: string | null;
   photoUrl: string | null;
   dateOfBirth: string | null;
   idNumber: string | null;
@@ -131,6 +133,7 @@ async function buildEmployeeDataExport(employee: {
       employee: {
         ...employee,
         phone: decryptDataUrl(employee.phone),
+        email: employee.email ? decryptDataUrl(employee.email) : null,
         photoUrl: employee.photoUrl ? decryptDataUrl(employee.photoUrl) : null,
         dateOfBirth: employee.dateOfBirth ? decryptDataUrl(employee.dateOfBirth) : null,
         idNumber: employee.idNumber ? decryptDataUrl(employee.idNumber) : null,

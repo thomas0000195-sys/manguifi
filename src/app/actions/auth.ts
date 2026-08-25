@@ -11,6 +11,7 @@ import {
   consumePasswordResetToken,
 } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { encryptDataUrl, decryptDataUrl, hashEmail } from "@/lib/crypto";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { redirect } from "next/navigation";
@@ -47,7 +48,8 @@ export async function signupAction(
 
   const { orgName, email, password } = parsed.data;
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const emailHash = hashEmail(email);
+  const existing = await prisma.user.findUnique({ where: { emailHash } });
   if (existing) {
     return { error: "Un compte existe déjà avec cet email." };
   }
@@ -60,7 +62,8 @@ export async function signupAction(
   const user = await prisma.user.create({
     data: {
       orgId: org.id,
-      email,
+      email: encryptDataUrl(email),
+      emailHash,
       passwordHash,
       role: "ADMIN",
     },
@@ -70,7 +73,7 @@ export async function signupAction(
     userId: user.id,
     orgId: org.id,
     role: user.role,
-    email: user.email,
+    email,
     employeeId: null,
   });
 
@@ -102,7 +105,7 @@ export async function loginAction(
     return { error: "Trop de tentatives. Réessayez dans quelques minutes." };
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { emailHash: hashEmail(email) } });
 
   if (!user || !user.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
     return { error: "Email ou mot de passe incorrect." };
@@ -112,7 +115,7 @@ export async function loginAction(
     userId: user.id,
     orgId: user.orgId,
     role: user.role,
-    email: user.email,
+    email,
     employeeId: user.employeeId,
   });
 
@@ -147,11 +150,12 @@ export async function requestPasswordResetAction(
     return { error: "Trop de demandes. Réessayez dans quelques minutes." };
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const user = await prisma.user.findUnique({ where: { emailHash: hashEmail(parsed.data.email) } });
 
   // Always report success even if the email doesn't exist, so this endpoint
   // can't be used to enumerate registered accounts.
   if (!user || !user.email) return { submitted: true };
+  const userEmail = decryptDataUrl(user.email);
 
   const token = await createPasswordResetToken(user.id);
   await logAudit({
@@ -162,7 +166,7 @@ export async function requestPasswordResetAction(
     entityId: user.id,
   });
 
-  const emailSent = await sendPasswordResetEmail(user.email, token);
+  const emailSent = await sendPasswordResetEmail(userEmail, token);
 
   if (emailSent) {
     return { submitted: true, emailSent: true };
@@ -174,7 +178,7 @@ export async function requestPasswordResetAction(
   // showing it inline is what makes the flow testable without real email.
   if (process.env.NODE_ENV === "production") {
     console.error(
-      `Password reset email could not be sent to ${user.email} — RESEND_API_KEY missing or Resend call failed.`
+      `Password reset email could not be sent to ${userEmail} — RESEND_API_KEY missing or Resend call failed.`
     );
     return { submitted: true, emailSent: false };
   }

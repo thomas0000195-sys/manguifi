@@ -25,6 +25,9 @@ export default async function JustificatifDetailPage({
   const justificatif = {
     ...scoped,
     documentDataUrl: decryptDataUrl(scoped.documentDataUrl),
+    reviewedBy: scoped.reviewedBy
+      ? { ...scoped.reviewedBy, email: scoped.reviewedBy.email ? decryptDataUrl(scoped.reviewedBy.email) : null }
+      : null,
   };
 
   const isImage = justificatif.documentDataUrl.startsWith("data:image");

@@ -159,7 +159,10 @@ model User {
   id           String   @id @default(cuid())
   orgId        String
   org          Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  email        String?  @unique
+  // Encrypted at rest — emailHash is a deterministic HMAC-SHA256 used for
+  // the login lookup, same rationale as phone/phoneHash below.
+  email        String?
+  emailHash    String?  @unique
   passwordHash String?
   // See Employee.phone/phoneHash above for why both columns exist.
   phone        String?

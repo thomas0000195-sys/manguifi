@@ -242,7 +242,7 @@ export async function createEmployeeAction(
       lastName,
       phone: encryptDataUrl(phone),
       phoneHash,
-      email: email || null,
+      email: email ? encryptDataUrl(email) : null,
       position: position || null,
       photoUrl: encryptDataUrl(photoDataUrl),
       matricule,
@@ -424,7 +424,7 @@ export async function importEmployeesCsvAction(
           lastName,
           phone: encryptDataUrl(phone),
           phoneHash,
-          email: email || null,
+          email: email ? encryptDataUrl(email) : null,
           position: position || null,
           matricule,
         },
@@ -475,7 +475,8 @@ export async function createResponsableAction(
   const team = await prisma.team.findFirst({ where: { id: teamId, orgId: session.orgId } });
   if (!team) return { error: "Équipe introuvable." };
 
-  const existing = await prisma.user.findUnique({ where: { email: fullEmail } });
+  const { hashEmail } = await import("@/lib/crypto");
+  const existing = await prisma.user.findUnique({ where: { emailHash: hashEmail(fullEmail) } });
 
   if (existing) {
     if (existing.orgId !== session.orgId || existing.role !== "RESPONSABLE") {
@@ -509,7 +510,8 @@ export async function createResponsableAction(
   const user = await prisma.user.create({
     data: {
       orgId: session.orgId,
-      email: fullEmail,
+      email: encryptDataUrl(fullEmail),
+      emailHash: hashEmail(fullEmail),
       passwordHash,
       role: "RESPONSABLE",
       responsableTeams: { create: { teamId } },

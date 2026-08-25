@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/guard";
+import { decryptDataUrl } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/AppShell";
 
@@ -11,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       orgName={user.org.name}
-      userEmail={user.email}
+      userEmail={user.email ? decryptDataUrl(user.email) : null}
       role={user.role}
       isDemo={user.org.isDemo}
     >

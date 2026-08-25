@@ -43,3 +43,13 @@ export function decryptDataUrl(stored: string): string {
     return stored;
   }
 }
+
+/**
+ * Deterministic HMAC-SHA256 of an email address — same rationale as
+ * hashPhone (lib/phone.ts): User.email is encrypted at rest, so exact-match
+ * login lookups go through this hash instead of the ciphertext column.
+ */
+export function hashEmail(email: string): string {
+  const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
+  return crypto.createHmac("sha256", secret).update(email).digest("hex");
+}

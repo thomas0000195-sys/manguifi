@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { toE164, hashPhone } from "../src/lib/phone";
+import { hashEmail } from "../src/lib/crypto";
 
 const prisma = new PrismaClient();
 
@@ -109,7 +110,8 @@ async function main() {
   await prisma.user.create({
     data: {
       orgId: org.id,
-      email: "admin@baobab.mg",
+      email: encryptDataUrl("admin@baobab.mg"),
+      emailHash: hashEmail("admin@baobab.mg"),
       passwordHash,
       role: "ADMIN",
     },
@@ -118,7 +120,8 @@ async function main() {
   const responsable = await prisma.user.create({
     data: {
       orgId: org.id,
-      email: "responsable@baobab.mg",
+      email: encryptDataUrl("responsable@baobab.mg"),
+      emailHash: hashEmail("responsable@baobab.mg"),
       passwordHash,
       role: "RESPONSABLE",
     },

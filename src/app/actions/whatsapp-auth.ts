@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { createSession, requireSession } from "@/lib/auth";
 import { toE164, hashPhone } from "@/lib/phone";
-import { encryptDataUrl } from "@/lib/crypto";
+import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
 import { sendOtp, checkOtp } from "@/lib/twilio";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
@@ -131,7 +131,7 @@ export async function verifyEmployeeOtpAction(
     userId: user.id,
     orgId: user.orgId,
     role: user.role,
-    email: user.email,
+    email: user.email ? decryptDataUrl(user.email) : null,
     employeeId: user.employeeId,
   });
 
@@ -253,7 +253,7 @@ export async function verifyLoginOtpAction(
     userId: user.id,
     orgId: user.orgId,
     role: user.role,
-    email: user.email,
+    email: user.email ? decryptDataUrl(user.email) : null,
     employeeId: user.employeeId,
   });
 

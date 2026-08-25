@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/guard";
+import { decryptDataUrl } from "@/lib/crypto";
 import Link from "next/link";
 import { QrCode, Home, History, FileCheck2, LogOut, UserCircle } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
@@ -49,7 +50,7 @@ export default async function EspaceLayout({ children }: { children: React.React
           <FileCheck2 className="h-5 w-5" /> Justificatifs
         </Link>
       </nav>
-      <p className="sr-only">{user.email}</p>
+      <p className="sr-only">{user.email ? decryptDataUrl(user.email) : ""}</p>
     </div>
   );
 }

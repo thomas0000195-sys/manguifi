@@ -33,7 +33,11 @@ export default async function EquipesPage() {
         ...t,
         responsables: t.responsables.map((r) => ({
           ...r,
-          user: { ...r.user, phone: r.user.phone ? decryptDataUrl(r.user.phone) : null },
+          user: {
+            ...r.user,
+            email: r.user.email ? decryptDataUrl(r.user.email) : null,
+            phone: r.user.phone ? decryptDataUrl(r.user.phone) : null,
+          },
         })),
       })),
     }))
