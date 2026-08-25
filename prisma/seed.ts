@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
-import { toE164 } from "../src/lib/phone";
+import { toE164, hashPhone } from "../src/lib/phone";
 
 const prisma = new PrismaClient();
 
@@ -155,19 +155,21 @@ async function main() {
   for (const [firstName, lastName, teamName] of employeeNames) {
     seq++;
     const team = teams.find((t) => t.name === teamName)!;
+    const phoneE164 = nextPhone();
     const emp = await prisma.employee.create({
       data: {
         orgId: org.id,
         teamId: team.id,
         firstName,
         lastName,
-        phone: nextPhone(),
+        phone: encryptDataUrl(phoneE164),
+        phoneHash: hashPhone(phoneE164),
         position: teamName === "Cuisine" ? "Cuisinier·ère" : teamName === "Salle" ? "Serveur·se" : "Agent de sécurité",
         matricule: `MGF-${new Date().getFullYear()}-${String(seq).padStart(6, "0")}`,
         photoUrl: encryptDataUrl(PLACEHOLDER_DOC),
       },
     });
-    employees.push({ ...emp, teamStart: team.start, teamEnd: team.end });
+    employees.push({ ...emp, phone: phoneE164, teamStart: team.start, teamEnd: team.end });
   }
   await prisma.organization.update({ where: { id: org.id }, data: { employeeSequence: seq } });
 

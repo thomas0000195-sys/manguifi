@@ -18,12 +18,18 @@ export default async function EmployeeProfilePage({
 
   await assertEmployeeInScope(user, id);
 
-  const employee = await prisma.employee.findUniqueOrThrow({
+  const employeeRaw = await prisma.employee.findUniqueOrThrow({
     where: { id },
     include: { team: { include: { site: true } }, user: true },
   });
 
-  const photoDataUrl = employee.photoUrl ? decryptDataUrl(employee.photoUrl) : null;
+  const photoDataUrl = employeeRaw.photoUrl ? decryptDataUrl(employeeRaw.photoUrl) : null;
+  const employee = {
+    ...employeeRaw,
+    phone: decryptDataUrl(employeeRaw.phone),
+    dateOfBirth: employeeRaw.dateOfBirth ? decryptDataUrl(employeeRaw.dateOfBirth) : null,
+    idNumber: employeeRaw.idNumber ? decryptDataUrl(employeeRaw.idNumber) : null,
+  };
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-6 sm:py-8">

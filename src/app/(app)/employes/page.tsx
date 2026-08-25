@@ -28,6 +28,7 @@ export default async function EmployesPage() {
 
   const employees = employeesRaw.map((e) => ({
     ...e,
+    phone: decryptDataUrl(e.phone),
     photoUrl: e.photoUrl ? decryptDataUrl(e.photoUrl) : null,
   }));
 

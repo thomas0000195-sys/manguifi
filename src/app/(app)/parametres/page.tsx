@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/guard";
+import { decryptDataUrl } from "@/lib/crypto";
 import ParametresClient from "./ParametresClient";
 
 export default async function ParametresPage() {
@@ -7,7 +8,7 @@ export default async function ParametresPage() {
   return (
     <ParametresClient
       role={user.role as "ADMIN" | "RESPONSABLE"}
-      phone={user.phone}
+      phone={user.phone ? decryptDataUrl(user.phone) : null}
       org={{
         name: user.org.name,
         photoOnPunchEnabled: user.org.photoOnPunchEnabled,

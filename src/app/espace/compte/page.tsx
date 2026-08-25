@@ -1,10 +1,12 @@
 import { requireUser } from "@/lib/guard";
+import { decryptDataUrl } from "@/lib/crypto";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import MyDataPanel from "./MyDataPanel";
 
 export default async function MonComptePage() {
   const user = await requireUser(["EMPLOYEE"]);
+  const phone = user.phone ? decryptDataUrl(user.phone) : null;
 
   return (
     <div className="mx-auto max-w-md px-5 py-6">
@@ -17,7 +19,7 @@ export default async function MonComptePage() {
 
       <h1 className="mt-5 text-xl font-bold text-navy-950">Mon compte</h1>
       <p className="text-sm text-muted">
-        Connecté avec {user.phone ?? user.email ?? "votre compte"}.
+        Connecté avec {phone ?? user.email ?? "votre compte"}.
       </p>
 
       <MyDataPanel />

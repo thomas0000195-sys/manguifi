@@ -2,7 +2,8 @@
 
 import { prisma } from "@/lib/prisma";
 import { createSession, requireSession } from "@/lib/auth";
-import { toE164 } from "@/lib/phone";
+import { toE164, hashPhone } from "@/lib/phone";
+import { encryptDataUrl } from "@/lib/crypto";
 import { sendOtp, checkOtp } from "@/lib/twilio";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
@@ -15,7 +16,7 @@ export type OtpVerifyState = { error?: string };
 
 async function logAttempt(phone: string, outcome: string, employeeId?: string) {
   await prisma.phoneVerificationAttempt.create({
-    data: { phone, outcome, employeeId: employeeId ?? null },
+    data: { phone: encryptDataUrl(phone), outcome, employeeId: employeeId ?? null },
   });
 }
 
@@ -40,7 +41,7 @@ export async function requestEmployeeOtpAction(
   }
 
   const employee = await prisma.employee.findFirst({
-    where: { phone: e164, status: "ACTIF" },
+    where: { phoneHash: hashPhone(e164), status: "ACTIF" },
   });
 
   if (!employee) {
@@ -79,7 +80,7 @@ export async function verifyEmployeeOtpAction(
   }
 
   const employee = await prisma.employee.findFirst({
-    where: { phone: e164, status: "ACTIF" },
+    where: { phoneHash: hashPhone(e164), status: "ACTIF" },
     include: { user: true },
   });
   if (!employee) {
@@ -99,6 +100,7 @@ export async function verifyEmployeeOtpAction(
   await logAttempt(e164, "SUCCESS", employee.id);
 
   const now = new Date();
+  const phoneHash = hashPhone(e164);
   let user = employee.user;
   if (!user) {
     user = await prisma.user.create({
@@ -106,14 +108,15 @@ export async function verifyEmployeeOtpAction(
         orgId: employee.orgId,
         role: "EMPLOYEE",
         employeeId: employee.id,
-        phone: e164,
+        phone: encryptDataUrl(e164),
+        phoneHash,
         phoneVerifiedAt: now,
       },
     });
   } else if (!user.phoneVerifiedAt) {
     user = await prisma.user.update({
       where: { id: user.id },
-      data: { phone: e164, phoneVerifiedAt: now },
+      data: { phone: encryptDataUrl(e164), phoneHash, phoneVerifiedAt: now },
     });
   }
 
@@ -157,7 +160,7 @@ export async function requestLinkPhoneOtpAction(
     return { error: "Trop de demandes. Réessayez dans quelques minutes." };
   }
 
-  const existing = await prisma.user.findUnique({ where: { phone: e164 } });
+  const existing = await prisma.user.findUnique({ where: { phoneHash: hashPhone(e164) } });
   if (existing && existing.id !== session.userId) {
     return { error: "Ce numéro est déjà utilisé par un autre compte." };
   }
@@ -185,7 +188,7 @@ export async function verifyLinkPhoneOtpAction(
 
   await prisma.user.update({
     where: { id: session.userId },
-    data: { phone: e164, phoneVerifiedAt: new Date() },
+    data: { phone: encryptDataUrl(e164), phoneHash: hashPhone(e164), phoneVerifiedAt: new Date() },
   });
 
   await logAudit({
@@ -214,7 +217,7 @@ export async function requestLoginOtpAction(
   }
 
   const user = await prisma.user.findFirst({
-    where: { phone: e164, phoneVerifiedAt: { not: null }, role: { in: ["ADMIN", "RESPONSABLE"] } },
+    where: { phoneHash: hashPhone(e164), phoneVerifiedAt: { not: null }, role: { in: ["ADMIN", "RESPONSABLE"] } },
   });
   if (!user) {
     return { error: "Aucun compte administrateur/responsable n'est associé à ce numéro." };
@@ -239,7 +242,7 @@ export async function verifyLoginOtpAction(
   }
 
   const user = await prisma.user.findFirst({
-    where: { phone: e164, phoneVerifiedAt: { not: null }, role: { in: ["ADMIN", "RESPONSABLE"] } },
+    where: { phoneHash: hashPhone(e164), phoneVerifiedAt: { not: null }, role: { in: ["ADMIN", "RESPONSABLE"] } },
   });
   if (!user) return { error: "Aucun compte n'est associé à ce numéro." };
 

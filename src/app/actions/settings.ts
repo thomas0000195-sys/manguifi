@@ -82,7 +82,10 @@ export async function exportOrgDataAction() {
       teams,
       employees: employees.map((e) => ({
         ...e,
+        phone: decryptDataUrl(e.phone),
         photoUrl: e.photoUrl ? decryptDataUrl(e.photoUrl) : null,
+        dateOfBirth: e.dateOfBirth ? decryptDataUrl(e.dateOfBirth) : null,
+        idNumber: e.idNumber ? decryptDataUrl(e.idNumber) : null,
       })),
       attendances: attendances.map((a) => ({
         ...a,
@@ -109,7 +112,10 @@ async function buildEmployeeDataExport(employee: {
   id: string;
   firstName: string;
   lastName: string;
+  phone: string;
   photoUrl: string | null;
+  dateOfBirth: string | null;
+  idNumber: string | null;
   [key: string]: unknown;
 }) {
   const employeeId = employee.id;
@@ -122,7 +128,13 @@ async function buildEmployeeDataExport(employee: {
   return JSON.stringify(
     {
       exportedAt: new Date().toISOString(),
-      employee: { ...employee, photoUrl: employee.photoUrl ? decryptDataUrl(employee.photoUrl) : null },
+      employee: {
+        ...employee,
+        phone: decryptDataUrl(employee.phone),
+        photoUrl: employee.photoUrl ? decryptDataUrl(employee.photoUrl) : null,
+        dateOfBirth: employee.dateOfBirth ? decryptDataUrl(employee.dateOfBirth) : null,
+        idNumber: employee.idNumber ? decryptDataUrl(employee.idNumber) : null,
+      },
       attendances: attendances.map((a) => ({
         ...a,
         photoDataUrl: a.photoDataUrl ? decryptDataUrl(a.photoDataUrl) : null,

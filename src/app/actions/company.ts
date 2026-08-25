@@ -4,7 +4,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { encryptDataUrl } from "@/lib/crypto";
+import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
+import { hashPhone } from "@/lib/phone";
 import { generateMatricule } from "@/lib/matricule";
 import { revalidatePath } from "next/cache";
 
@@ -223,8 +224,9 @@ export async function createEmployeeAction(
   const { toE164 } = await import("@/lib/phone");
   const phone = toE164(rawPhone);
   if (!phone) return { error: "Numéro de téléphone invalide." };
+  const phoneHash = hashPhone(phone);
 
-  const existingPhone = await prisma.employee.findUnique({ where: { phone } });
+  const existingPhone = await prisma.employee.findUnique({ where: { phoneHash } });
   if (existingPhone) return { error: "Ce numéro est déjà utilisé par un autre employé." };
 
   const team = await prisma.team.findFirst({ where: { id: teamId, orgId: session.orgId } });
@@ -238,13 +240,14 @@ export async function createEmployeeAction(
       teamId,
       firstName,
       lastName,
-      phone,
+      phone: encryptDataUrl(phone),
+      phoneHash,
       email: email || null,
       position: position || null,
       photoUrl: encryptDataUrl(photoDataUrl),
       matricule,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-      idNumber: idNumber || null,
+      dateOfBirth: dateOfBirth ? encryptDataUrl(new Date(dateOfBirth).toISOString()) : null,
+      idNumber: idNumber ? encryptDataUrl(idNumber) : null,
     },
   });
 
@@ -361,9 +364,10 @@ export async function importEmployeesCsvAction(
 
   const { toE164 } = await import("@/lib/phone");
   // Phone is globally unique (it's the WhatsApp login key), so the dedupe
-  // check has to look across the whole table, not just this org.
-  const existingPhones = new Set(
-    (await prisma.employee.findMany({ select: { phone: true } })).map((e) => e.phone)
+  // check has to look across the whole table, not just this org. Dedupe by
+  // hash since the phone column itself is encrypted (non-comparable).
+  const existingPhoneHashes = new Set(
+    (await prisma.employee.findMany({ select: { phoneHash: true } })).map((e) => e.phoneHash)
   );
 
   let count = 0;
@@ -394,20 +398,21 @@ export async function importEmployeesCsvAction(
       results.push({ row: rowNumber, firstName, lastName, status: "error", reason: "Numéro de téléphone invalide." });
       continue;
     }
+    const phoneHash = hashPhone(phone);
 
-    if (existingPhones.has(phone) || seenInFile.has(phone)) {
+    if (existingPhoneHashes.has(phoneHash) || seenInFile.has(phoneHash)) {
       skipped++;
       results.push({
         row: rowNumber,
         firstName,
         lastName,
         status: "error",
-        reason: seenInFile.has(phone) ? "Doublon dans le fichier." : "Numéro déjà utilisé par un employé existant.",
+        reason: seenInFile.has(phoneHash) ? "Doublon dans le fichier." : "Numéro déjà utilisé par un employé existant.",
       });
       continue;
     }
 
-    seenInFile.add(phone);
+    seenInFile.add(phoneHash);
 
     if (!dryRun) {
       const matricule = await generateMatricule(session.orgId);
@@ -417,7 +422,8 @@ export async function importEmployeesCsvAction(
           teamId,
           firstName,
           lastName,
-          phone,
+          phone: encryptDataUrl(phone),
+          phoneHash,
           email: email || null,
           position: position || null,
           matricule,
@@ -550,12 +556,16 @@ export async function updateEmployeePhoneAction(
     return { error: "Ce numéro ne peut plus être modifié une fois la connexion WhatsApp activée." };
   }
 
-  const existing = await prisma.employee.findUnique({ where: { phone: e164 } });
+  const phoneHash = hashPhone(e164);
+  const existing = await prisma.employee.findUnique({ where: { phoneHash } });
   if (existing && existing.id !== employeeId) {
     return { error: "Ce numéro est déjà utilisé par un autre employé." };
   }
 
-  await prisma.employee.update({ where: { id: employeeId }, data: { phone: e164 } });
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: { phone: encryptDataUrl(e164), phoneHash },
+  });
 
   await logAudit({
     orgId: session.orgId,

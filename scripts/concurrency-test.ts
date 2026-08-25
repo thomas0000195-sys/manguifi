@@ -9,6 +9,7 @@
  * Run with: npx tsx scripts/concurrency-test.ts
  */
 import { PrismaClient } from "@prisma/client";
+import { hashPhone } from "../src/lib/phone";
 
 const prisma = new PrismaClient();
 
@@ -54,7 +55,8 @@ async function main() {
       teamId: team.id,
       firstName: "Test",
       lastName: "Concurrence",
-      phone: "000000000",
+      phone: `000000000-${Date.now()}`,
+      phoneHash: hashPhone(`TEST-${Date.now()}`),
       matricule: `TEST-${Date.now()}`,
     },
   });

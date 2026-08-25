@@ -9,7 +9,7 @@ type Employee = {
   lastName: string;
   position: string | null;
   matricule: string;
-  dateOfBirth: Date | null;
+  dateOfBirth: string | null;
   idNumber: string | null;
   team: { name: string; site: { name: string } };
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useActionState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { updateEmployeePhoneAction, type ActionState } from "@/app/actions/company";
 import { MessageCircle, Loader2, CheckCircle2, Clock, Pencil } from "lucide-react";
@@ -20,9 +20,12 @@ export default function EmployeeAccountPanel({
   const [editing, setEditing] = useState(false);
   const [state, formAction, pending] = useActionState(updateEmployeePhoneAction, initialState);
 
-  if (state.success) {
-    toast.success("Numéro mis à jour", { id: "phone-updated" });
-  }
+  useEffect(() => {
+    if (state.success) {
+      toast.success("Numéro mis à jour", { id: "phone-updated" });
+      setEditing(false);
+    }
+  }, [state.success]);
 
   const active = invitationStatus === "ACTIVE";
 
