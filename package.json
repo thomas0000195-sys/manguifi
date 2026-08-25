@@ -12,12 +12,19 @@
     "lint": "eslint",
     "db:seed": "node --env-file-if-exists=.env --import tsx prisma/seed.ts",
     "test:concurrency": "node --env-file-if-exists=.env --import tsx scripts/concurrency-test.ts",
-    "db:restore": "node --env-file-if-exists=.env --import tsx scripts/restore-backup.ts"
+    "db:restore": "node --env-file-if-exists=.env --import tsx scripts/restore-backup.ts",
+    "cap:sync": "cap sync",
+    "cap:android": "cap open android",
+    "cap:ios": "cap open ios"
   },
   "prisma": {
     "seed": "node --env-file-if-exists=.env --import tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.0",
+    "@capacitor/cli": "8.5.0",
+    "@capacitor/core": "8.5.0",
+    "@capacitor/ios": "8.5.0",
     "@prisma/client": "^6.19.3",
     "@sentry/nextjs": "^10.71.0",
     "bcryptjs": "^3.0.3",

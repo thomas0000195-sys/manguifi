@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Manguifi</string>
+    <string name="title_activity_main">Manguifi</string>
+    <string name="package_name">com.manguifi.app</string>
+    <string name="custom_url_scheme">com.manguifi.app</string>
+</resources>
