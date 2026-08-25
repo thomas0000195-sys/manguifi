@@ -19,7 +19,12 @@ Le chiffrement des données binaires sensibles (photos employé, photos de point
 - **`.env.example`** mis à jour (variables Twilio manquantes depuis une session précédente, + nouvelles variables Sentry/rétention).
 - **Clé de chiffrement de secours utilisée à tort par les scripts standalone** (`package.json`) — trouvé en faisant un vrai test de restauration de bout en bout (voir section 2) : `tsx` (utilisé par `db:seed`/`db:restore`/`test:concurrency`) ne charge pas `.env` automatiquement, contrairement à `next dev`/`next start`. `lib/crypto.ts` retombait donc silencieusement sur `"manguifi-dev-fallback-key"` (codée en dur, visible dans le dépôt) au lieu de la vraie `ENCRYPTION_KEY` pour tout ce qui passait par ces scripts. Corrigé via `node --env-file-if-exists=.env --import tsx` (ne casse pas le conteneur Docker, qui n'a pas de fichier `.env` — vérifié).
 
-**Non traité, documenté en section 3** : les champs texte identifiants (téléphone, email, numéro de pièce d'identité, date de naissance) restent en clair dans la base SQLite — voir la discussion détaillée en section 3, c'est une décision qui vous revient.
+- **Chiffrement des champs identifiants** (téléphone, email, date de naissance, numéro de pièce d'identité) — jusqu'ici en clair dans SQLite, seules les données binaires (photos/documents) étaient chiffrées. Fait après votre confirmation explicite ("attakons tout c'est sujet par priorité"), puisque ça touchait l'authentification WhatsApp fraîchement construite et testée.
+  - Téléphone (`Employee.phone`, `User.phone`) et email (`User.email`) sont aussi des clés de connexion (recherche exacte requise) — chiffrer directement aurait cassé cette recherche. Résolu avec une colonne `phoneHash`/`emailHash` (HMAC-SHA256 déterministe, `lib/phone.ts`/`lib/crypto.ts`) utilisée pour toute recherche exacte, la colonne d'origine ne contenant plus que du chiffré AES-256-GCM non recherchable.
+  - `Employee.email`, `dateOfBirth`, `idNumber` : simplement chiffrés (jamais recherchés par valeur, pas besoin de hash).
+  - Deux migrations écrites à la main (`encrypt_pii_fields`, `encrypt_email`) — SQLite ne supporte pas `ALTER COLUMN TYPE`, donc recréation de table. Aucune donnée réelle n'a jamais été déployée pour ce projet, donc pas de risque de perte de données de production.
+  - **Bug additionnel trouvé en testant la restauration** : `tsx` ne charge pas `.env`, donc `db:seed`/`db:restore` chiffraient avec la clé de secours codée en dur au lieu de la vraie clé — corrigé (voir plus haut).
+  - Testé en conditions réelles complètes (pas juste au build) : connexion WhatsApp employé (numéro reconnu + rejet d'un numéro inconnu), création/modification d'employé avec téléphone et date de naissance, import CSV, export individuel et organisation, cycle sauvegarde→restauration→déchiffrement avec vérification du hash recalculé, connexion email/mot de passe, inscription, ajout d'un responsable existant à une équipe, réinitialisation de mot de passe, affichage de l'email dans la sidebar/journal d'audit/détail justificatif. Tout fonctionne après migration.
 
 ### RGPD (Phase 4, point 22)
 
@@ -79,12 +84,14 @@ Audit mené via relecture ciblée du code (fichiers/lignes cités dans les commi
 
 ## 3. Points bloqués — nécessitent une action de votre part
 
-1. **Chiffrement des champs identifiants en clair** (téléphone, email, numéro de pièce d'identité, date de naissance) — décision d'architecture, pas juste une action technique. Le téléphone est la clé de connexion WhatsApp (`Employee.phone`/`User.phone`, contrainte `@unique`) : le chiffrer nécessiterait soit (a) une colonne HMAC séparée pour permettre la recherche exacte tout en gardant la valeur affichée chiffrée, soit (b) un chiffrement déterministe (moins sûr qu'AES-GCM classique). C'est un changement qui touche l'authentification WhatsApp testée et fonctionnelle — je ne l'ai pas fait sans votre feu vert, pour ne rien casser. Si vous le voulez, dites-le et je le fais à votre retour.
-2. **Compte Sentry** — le code est prêt et inactif. Créez un compte sur sentry.io, récupérez le DSN, mettez `SENTRY_DSN` et `NEXT_PUBLIC_SENTRY_DSN` dans `.env` en production. Aucune action de ma part possible ici (compte à créer = règle d'arrêt).
-3. **Hébergement + nom de domaine** — comparatif préparé (section 4), mais création de compte hébergeur + achat du domaine restent à votre charge (règle d'arrêt explicite du prompt).
-4. **Docker jamais réellement testé** — build/run jamais exécutés faute de Docker installé sur cette machine. Le Dockerfile a été relu et adapté au fil des sessions mais son premier vrai test sera sur le futur VPS. Risque à connaître avant le déploiement final.
-5. **Texte juridique** (politique de confidentialité, CGU, DPA) — reste en l'état, volontairement non retouché (validation légale = règle d'arrêt).
-6. **Décision sur les demandes de suppression RGPD employé** — le mécanisme technique existe désormais (`/espace/compte`, journal d'audit), mais personne ne les traite automatiquement par design (voir section 1) : c'est un choix délibéré vu la valeur légale de paie des pointages, mais confirmez que c'est bien le comportement que vous voulez plutôt qu'une suppression automatique après délai.
+1. **Compte Sentry** — le code est prêt et inactif. Créez un compte sur sentry.io, récupérez le DSN, mettez `SENTRY_DSN` et `NEXT_PUBLIC_SENTRY_DSN` dans `.env` en production. Aucune action de ma part possible ici (compte à créer = règle d'arrêt).
+2. **Hébergement + nom de domaine** — comparatif préparé (section 4), mais création de compte hébergeur + achat du domaine restent à votre charge (règle d'arrêt explicite du prompt).
+3. **Docker jamais réellement testé** — build/run jamais exécutés faute de Docker installé sur cette machine (toujours introuvable en fin de session, vérifié à nouveau). Le Dockerfile a été relu et adapté au fil des sessions mais son premier vrai test sera sur le futur VPS. Risque à connaître avant le déploiement final.
+4. **Texte juridique** (politique de confidentialité, CGU, DPA) — reste en l'état, volontairement non retouché (validation légale = règle d'arrêt).
+5. **Décision sur les demandes de suppression RGPD employé** — le mécanisme technique existe désormais (`/espace/compte`, journal d'audit), mais personne ne les traite automatiquement par design (voir section 1) : c'est un choix délibéré vu la valeur légale de paie des pointages, mais confirmez que c'est bien le comportement que vous voulez plutôt qu'une suppression automatique après délai.
+6. **Compte Twilio toujours en mode trial** — l'envoi WhatsApp ne fonctionne que vers des numéros vérifiés dans la console Twilio (déjà documenté en session précédente, toujours vrai). Passage en production + expéditeur WhatsApp enregistré (Meta) à votre charge.
+
+*(Le chiffrement des champs identifiants, seul point technique de cette liste sur lequel j'attendais votre feu vert, est maintenant fait — voir section 1.)*
 
 ---
 
@@ -109,7 +116,6 @@ Aucune vérification de disponibilité effectuée (nécessiterait d'interroger u
 ## 5. Propositions d'amélioration non implémentées
 
 - **CSP par nonce** (au lieu de `'unsafe-inline'`) via `middleware.ts` — plus strict contre l'injection de script, demande de propager un nonce par requête dans tous les `<Script>`/inline styles de l'app. Non fait cette session (changement plus large, risque de casser le rendu sans test approfondi).
-- **Chiffrement des champs identifiants en clair** (téléphone/email/idNumber/dateOfBirth) — voir point bloquant #1, section 3.
 - **Import CSV en file d'attente asynchrone** pour les très gros volumes (300-1000+ lignes) — évite tout risque de timeout, permet un rapport de progression en temps réel. Nécessite une infra de queue (Redis/BullMQ ou équivalent), non installée.
 - **Politique de rétention automatique** des pointages/justificatifs anciens (purge ou anonymisation après X mois) — actuellement rien n'expire automatiquement côté données métier (seules les sauvegardes ont désormais une rétention, section 1).
 - **Synchronisation Google Sheet / API d'import SIRH** — évoquées dans le prompt comme alternatives à l'import CSV, non implémentées (l'import CSV couvre le besoin minimum viable).
@@ -122,6 +128,7 @@ Aucune vérification de disponibilité effectuée (nécessiterait d'interroger u
 - [ ] Compte hébergeur créé (VPS ou PaaS, voir section 4) — **vous**
 - [ ] Nom de domaine acheté + DNS pointé — **vous**
 - [ ] `.env` de production rempli avec de vrais secrets (`AUTH_SECRET`, `ENCRYPTION_KEY`, `CRON_SECRET` générés via `openssl rand -hex 32`, jamais les valeurs de `.env.example`) — **vous**
+- [ ] **`ENCRYPTION_KEY` sauvegardée en lieu sûr en dehors du serveur** (gestionnaire de mots de passe, coffre-fort d'entreprise) — depuis cette session, elle chiffre non seulement les photos/documents mais aussi téléphone/email/date de naissance/CNI de tout le monde. La perdre rend ces données définitivement illisibles, sans exception ni recours. — **vous**
 - [ ] Compte Resend + domaine vérifié pour l'envoi d'email (déjà nécessaire, session antérieure) — **vous**
 - [ ] Compte Twilio passé en production (le trial actuel ne peut envoyer qu'aux numéros vérifiés dans la console) + expéditeur WhatsApp enregistré (Meta) — **vous**
 - [ ] Compte Sentry créé, DSN renseigné — **vous**
@@ -141,6 +148,16 @@ Aucune vérification de disponibilité effectuée (nécessiterait d'interroger u
 5. `Monitoring : intègre Sentry (code prêt, inactif sans compte/DSN)`
 6. `Sauvegardes : ne plus écrire les photos/documents en clair, purge auto`
 7. `Infra : CI GitHub Actions, docker-compose à jour, rapport de session`
+8. `RGPD : self-service employé — export et demande de suppression`
+9. `Rapport : met à jour SESSION_REPORT.md après le self-service RGPD`
+10. `Fix : les scripts standalone (seed/restore/concurrency-test) chiffraient avec une clé de secours codée en dur`
+11. `Rapport : documente le test de restauration réel et la vérification RBAC live`
+12. `Rapport : ajoute la vérification live du dashboard`
+13. `Rapport : documente les tests live des workflows de révision/validation`
+14. `Rapport : tests interactifs employé (self-service RGPD + justificatif)`
+15. `Sécurité : chiffre téléphone, date de naissance et numéro de pièce d'identité au repos`
+16. `Sécurité : chiffre l'email au repos (User.email + Employee.email)`
+17. *(rapport final, ce commit)*
 8. `RGPD : self-service employé — export et demande de suppression`
 9. `Rapport : met à jour SESSION_REPORT.md après le self-service RGPD`
 10. `Fix : les scripts standalone (seed/restore/concurrency-test) chiffraient avec une clé de secours codée en dur`
