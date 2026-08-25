@@ -215,6 +215,14 @@ export default function ParametresClient({
         Politique de confidentialité
       </Link>
 
+      <Link
+        href="/conditions-utilisation"
+        className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-surface p-5 text-sm font-medium text-navy-900 transition hover:bg-navy-50"
+      >
+        <ShieldAlert className="h-4 w-4 text-navy-800" />
+        Conditions générales d&apos;utilisation
+      </Link>
+
       {isAdmin && <DangerZone orgName={org.name} />}
     </div>
   );

@@ -226,6 +226,10 @@ export default function LandingPage() {
         <Link href="/politique-confidentialite" className="hover:text-navy-900 hover:underline">
           Politique de confidentialité
         </Link>
+        {" · "}
+        <Link href="/conditions-utilisation" className="hover:text-navy-900 hover:underline">
+          CGU
+        </Link>
       </footer>
     </div>
   );
