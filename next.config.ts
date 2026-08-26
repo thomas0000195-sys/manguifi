@@ -20,12 +20,17 @@ const nextConfig: NextConfig = {
             value: "max-age=63072000; includeSubDomains; preload",
           },
           {
-            // Next.js injects small inline bootstrap <script> tags (RSC
-            // payload, hydration data) and inlines critical CSS, so both
-            // script-src and style-src need 'unsafe-inline' without a
-            // nonce-based setup (see SESSION_REPORT.md for the stricter
-            // middleware+nonce alternative that was evaluated but not
-            // implemented this session).
+            // A nonce-based script-src (generated per-request in
+            // middleware.ts) was tried and reverted this session: Next.js
+            // 16 + Turbopack does not automatically stamp its own
+            // App Router bootstrap/RSC scripts with the nonce the way
+            // older Next.js documentation describes, so 'strict-dynamic'
+            // blocked every one of them and broke hydration entirely
+            // (confirmed via browser console — every _next/static chunk
+            // and the inline __next_f payload scripts were rejected).
+            // 'unsafe-inline' stays here until that's resolved upstream
+            // or a working per-request nonce mechanism is found for this
+            // Next.js/Turbopack combination.
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
