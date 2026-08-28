@@ -41,7 +41,7 @@ type Employee = {
   id: string;
   firstName: string;
   lastName: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   position: string | null;
   photoUrl: string | null;
@@ -57,12 +57,15 @@ export default function EmployeesClient({
   teams,
   canManage,
   idNumberEnabled,
+  authChannel,
 }: {
   employees: Employee[];
   teams: Team[];
   canManage: boolean;
   idNumberEnabled: boolean;
+  authChannel: "WHATSAPP" | "EMAIL";
 }) {
+  const emailChannel = authChannel === "EMAIL";
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -77,7 +80,7 @@ export default function EmployeesClient({
   const [importProgress, setImportProgress] = useState<{ done: number; total: number } | null>(null);
 
   const filtered = employees.filter((e) =>
-    `${e.firstName} ${e.lastName} ${e.phone} ${e.team.name} ${e.matricule}`
+    `${e.firstName} ${e.lastName} ${e.phone ?? ""} ${e.email ?? ""} ${e.team.name} ${e.matricule}`
       .toLowerCase()
       .includes(query.toLowerCase())
   );
@@ -327,7 +330,7 @@ export default function EmployeesClient({
                   {emp.status === "ACTIF" ? "Actif" : "Inactif"}
                 </span>
               </div>
-              <p className="mt-3 text-xs text-muted">{emp.phone}</p>
+              <p className="mt-3 text-xs text-muted">{emp.phone ?? emp.email}</p>
               <div className="mt-4 flex items-center gap-2">
                 <Link
                   href={`/employes/${emp.id}`}
@@ -394,18 +397,30 @@ export default function EmployeesClient({
                   className="rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100"
                 />
               </div>
-              <input
-                name="phone"
-                required
-                placeholder="Téléphone"
-                className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100"
-              />
-              <input
-                name="email"
-                type="email"
-                placeholder="Email (facultatif)"
-                className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100"
-              />
+              {emailChannel ? (
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="Email (utilisé pour la connexion)"
+                  className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100"
+                />
+              ) : (
+                <>
+                  <input
+                    name="phone"
+                    required
+                    placeholder="Téléphone WhatsApp"
+                    className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100"
+                  />
+                  <input
+                    name="email"
+                    type="email"
+                    placeholder="Email (facultatif)"
+                    className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100"
+                  />
+                </>
+              )}
               <input
                 name="position"
                 placeholder="Poste (facultatif)"

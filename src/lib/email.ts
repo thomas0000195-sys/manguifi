@@ -60,3 +60,97 @@ export async function sendPasswordResetEmail(to: string, rawToken: string) {
     return false;
   }
 }
+
+/**
+ * One-time login code for employees whose organization uses the email
+ * auth channel (Organization.authChannel === "EMAIL") instead of WhatsApp.
+ * Same delivery mechanism (Resend) as the password reset email above, but a
+ * distinct, non-technical template aimed at a first-time employee user.
+ */
+export async function sendEmployeeOtpEmail(to: string, code: string) {
+  const resend = getResendClient();
+  if (!resend) return false;
+
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM,
+      to,
+      subject: `${code} — votre code de connexion Manguifi`,
+      html: `
+        <div style="font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #0b1324;">
+          <div style="background: #0b1a36; padding: 20px 24px; border-radius: 14px 14px 0 0;">
+            <span style="color: #fff; font-weight: 700; font-size: 17px;">Manguifi</span>
+          </div>
+          <div style="border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 14px 14px; padding: 28px 24px;">
+            <h1 style="font-size: 18px; margin: 0 0 12px;">Votre code de connexion</h1>
+            <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 20px;">
+              Entrez ce code dans l'application pour vous connecter à votre espace employé. Il expire dans 10 minutes.
+            </p>
+            <div style="background: #f1f5f9; border-radius: 10px; padding: 16px; text-align: center; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0b1a36;">
+              ${code}
+            </div>
+            <p style="font-size: 12.5px; color: #64748b; margin-top: 24px;">
+              Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+    if (error) {
+      console.error("Resend error:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Failed to send employee OTP email:", err);
+    return false;
+  }
+}
+
+/**
+ * Sent once, when an admin first creates an employee profile in an
+ * organization using the email auth channel — tells a non-technical
+ * first-time user where to go and what to expect (a code, not a password).
+ */
+export async function sendEmployeeInvitationEmail(to: string, orgName: string, firstName: string) {
+  const resend = getResendClient();
+  if (!resend) return false;
+
+  const loginUrl = `${getAppUrl()}/connexion-employe`;
+
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM,
+      to,
+      subject: `Bienvenue sur Manguifi — ${orgName}`,
+      html: `
+        <div style="font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #0b1324;">
+          <div style="background: #0b1a36; padding: 20px 24px; border-radius: 14px 14px 0 0;">
+            <span style="color: #fff; font-weight: 700; font-size: 17px;">Manguifi</span>
+          </div>
+          <div style="border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 14px 14px; padding: 28px 24px;">
+            <h1 style="font-size: 18px; margin: 0 0 12px;">Bonjour ${firstName},</h1>
+            <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px;">
+              <strong>${orgName}</strong> vous a ajouté sur Manguifi, l'application utilisée pour votre pointage.
+              Vous n'avez pas besoin de créer de mot de passe : à chaque connexion, un code à usage unique vous sera envoyé par email.
+            </p>
+            <a href="${loginUrl}" style="display: inline-block; background: #0b1a36; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; padding: 12px 22px; border-radius: 10px;">
+              Se connecter
+            </a>
+            <p style="font-size: 12.5px; color: #64748b; margin-top: 24px;">
+              Utilisez cette adresse email pour vous connecter. Un code vous sera envoyé à chaque fois.
+            </p>
+          </div>
+        </div>
+      `,
+    });
+    if (error) {
+      console.error("Resend error:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("Failed to send employee invitation email:", err);
+    return false;
+  }
+}

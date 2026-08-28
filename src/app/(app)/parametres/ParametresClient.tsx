@@ -4,7 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { updateSettingsAction, exportOrgDataAction, type ActionState } from "@/app/actions/settings";
-import { Camera, MapPin, Vibrate, Clock, Download, Loader2, ScrollText, ShieldAlert, IdCard } from "lucide-react";
+import { Camera, MapPin, Vibrate, Clock, Download, Loader2, ScrollText, ShieldAlert, IdCard, Mail, MessageCircle } from "lucide-react";
 import DangerZone from "./DangerZone";
 import WhatsAppLinkCard from "./WhatsAppLinkCard";
 
@@ -28,11 +28,13 @@ export default function ParametresClient({
     matriculePrefix: string;
     idNumberEnabled: boolean;
     attendanceRetentionMonths: number | null;
+    authChannel: "WHATSAPP" | "EMAIL";
   };
 }) {
   const [state, formAction, pending] = useActionState(updateSettingsAction, initialState);
   const [timeWindow, setTimeWindow] = useState(org.allowedTimeWindowEnabled);
   const [retentionEnabled, setRetentionEnabled] = useState(org.attendanceRetentionMonths != null);
+  const [authChannel, setAuthChannel] = useState(org.authChannel);
   const [exporting, startExport] = useTransition();
   const isAdmin = role === "ADMIN";
 
@@ -116,6 +118,56 @@ export default function ParametresClient({
               </div>
             )}
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-surface p-5">
+          <h2 className="text-sm font-semibold text-navy-950">Connexion des employés</h2>
+          <p className="mt-1 text-xs text-muted">
+            WhatsApp est le canal cible pour la production. L&apos;email est utile pour tester
+            avant l&apos;approbation Meta d&apos;un expéditeur WhatsApp (pilote).
+          </p>
+          <div className="mt-3 flex gap-2">
+            <label
+              className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                authChannel === "WHATSAPP"
+                  ? "border-navy-900 bg-navy-900 text-white"
+                  : "border-border text-navy-900 hover:bg-navy-50"
+              }`}
+            >
+              <input
+                type="radio"
+                name="authChannel"
+                value="WHATSAPP"
+                checked={authChannel === "WHATSAPP"}
+                onChange={() => setAuthChannel("WHATSAPP")}
+                className="sr-only"
+              />
+              <MessageCircle className="h-4 w-4" /> WhatsApp
+            </label>
+            <label
+              className={`flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                authChannel === "EMAIL"
+                  ? "border-navy-900 bg-navy-900 text-white"
+                  : "border-border text-navy-900 hover:bg-navy-50"
+              }`}
+            >
+              <input
+                type="radio"
+                name="authChannel"
+                value="EMAIL"
+                checked={authChannel === "EMAIL"}
+                onChange={() => setAuthChannel("EMAIL")}
+                className="sr-only"
+              />
+              <Mail className="h-4 w-4" /> Email
+            </label>
+          </div>
+          {authChannel !== org.authChannel && (
+            <p className="mt-2 text-xs text-orange-600">
+              Ce changement s&apos;appliquera aux nouveaux employés créés après l&apos;enregistrement — les
+              employés existants gardent leur canal actuel.
+            </p>
+          )}
         </div>
 
         <div className="rounded-2xl border border-border bg-surface p-5">

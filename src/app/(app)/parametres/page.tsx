@@ -20,6 +20,7 @@ export default async function ParametresPage() {
         matriculePrefix: user.org.matriculePrefix,
         idNumberEnabled: user.org.idNumberEnabled,
         attendanceRetentionMonths: user.org.attendanceRetentionMonths,
+        authChannel: user.org.authChannel,
       }}
     />
   );

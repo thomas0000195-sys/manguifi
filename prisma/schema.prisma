@@ -61,6 +61,15 @@ enum OvertimeStatus {
   REJETEE
 }
 
+// Comment un employé de cette organisation se connecte. WHATSAPP est la
+// cible pour la production ; EMAIL existe pour tester avant l'approbation
+// Meta d'un expéditeur WhatsApp (ex. pilote IWADA) — configurable par
+// organisation, jamais un remplacement global du flux WhatsApp.
+enum AuthChannel {
+  WHATSAPP
+  EMAIL
+}
+
 model Organization {
   id                        String   @id @default(cuid())
   name                      String
@@ -82,6 +91,7 @@ model Organization {
   // paie varient par pays, donc l'admin doit l'activer explicitement en
   // connaissance de cause plutôt que de subir une suppression par défaut.
   attendanceRetentionMonths Int?
+  authChannel               AuthChannel @default(WHATSAPP)
 
   sites         Site[]
   teams         Team[]
@@ -137,9 +147,14 @@ model Employee {
   // phone is encrypted at rest (AES-256-GCM) — phoneHash is a deterministic
   // HMAC-SHA256 of the normalized E.164 number, used for exact-match lookup
   // (WhatsApp login) since you can't query an encrypted column directly.
-  phone      String
-  phoneHash  String         @unique
+  // Nullable because an EMAIL-auth-channel organization (see
+  // Organization.authChannel) logs its employees in by email instead.
+  phone      String?
+  phoneHash  String?        @unique
+  // email is encrypted at rest — emailHash is the equivalent of phoneHash
+  // above, used for exact-match lookup when the org's authChannel is EMAIL.
   email      String?
+  emailHash  String?        @unique
   position   String?
   status     EmployeeStatus @default(ACTIF)
   photoUrl   String?
@@ -303,6 +318,26 @@ model PhoneVerificationAttempt {
   createdAt  DateTime @default(now())
 
   @@index([phone, createdAt])
+}
+
+/**
+ * One-time email login codes for employees on the EMAIL auth channel —
+ * the email equivalent of Twilio Verify for WhatsApp. codeHash is a
+ * SHA-256 of the 6-digit code (never stored in the clear, same pattern as
+ * PasswordResetToken.tokenHash); emailHash lets us look up the latest
+ * pending code for a given address without an encrypted, non-queryable
+ * column.
+ */
+model EmailOtpCode {
+  id         String    @id @default(cuid())
+  emailHash  String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([emailHash, createdAt])
 }
 
 model AuditLog {

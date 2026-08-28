@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
+import { encryptDataUrl, decryptDataUrl, hashEmail } from "@/lib/crypto";
 import { hashPhone } from "@/lib/phone";
 import { generateMatricule } from "@/lib/matricule";
 import { revalidatePath } from "next/cache";
@@ -183,7 +183,7 @@ export async function createTeamAction(
 const employeeSchema = z.object({
   firstName: z.string().min(1, "Prénom requis"),
   lastName: z.string().min(1, "Nom requis"),
-  phone: z.string().min(6, "Téléphone requis"),
+  phone: z.string().optional().or(z.literal("")),
   email: z.string().email().optional().or(z.literal("")),
   teamId: z.string().min(1, "Équipe requise"),
   position: z.string().optional().or(z.literal("")),
@@ -201,7 +201,7 @@ export async function createEmployeeAction(
   const parsed = employeeSchema.safeParse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
-    phone: formData.get("phone"),
+    phone: formData.get("phone") || "",
     email: formData.get("email") || "",
     teamId: formData.get("teamId"),
     position: formData.get("position") || "",
@@ -221,13 +221,29 @@ export async function createEmployeeAction(
     return { error: "Format d'image invalide pour la photo de profil." };
   }
 
-  const { toE164 } = await import("@/lib/phone");
-  const phone = toE164(rawPhone);
-  if (!phone) return { error: "Numéro de téléphone invalide." };
-  const phoneHash = hashPhone(phone);
+  const org = await prisma.organization.findUniqueOrThrow({ where: { id: session.orgId } });
 
-  const existingPhone = await prisma.employee.findUnique({ where: { phoneHash } });
-  if (existingPhone) return { error: "Ce numéro est déjà utilisé par un autre employé." };
+  let phone: string | null = null;
+  let phoneHash: string | null = null;
+  let employeeEmail: string | null = null;
+  let emailHash: string | null = null;
+
+  if (org.authChannel === "EMAIL") {
+    if (!email) return { error: "Email requis — cette organisation utilise la connexion par email." };
+    employeeEmail = email;
+    emailHash = hashEmail(email);
+    const existingEmail = await prisma.employee.findUnique({ where: { emailHash } });
+    if (existingEmail) return { error: "Cet email est déjà utilisé par un autre employé." };
+  } else {
+    if (!rawPhone) return { error: "Téléphone requis." };
+    const { toE164 } = await import("@/lib/phone");
+    phone = toE164(rawPhone);
+    if (!phone) return { error: "Numéro de téléphone invalide." };
+    phoneHash = hashPhone(phone);
+    const existingPhone = await prisma.employee.findUnique({ where: { phoneHash } });
+    if (existingPhone) return { error: "Ce numéro est déjà utilisé par un autre employé." };
+    employeeEmail = email || null;
+  }
 
   const team = await prisma.team.findFirst({ where: { id: teamId, orgId: session.orgId } });
   if (!team) return { error: "Équipe introuvable." };
@@ -240,9 +256,10 @@ export async function createEmployeeAction(
       teamId,
       firstName,
       lastName,
-      phone: encryptDataUrl(phone),
+      phone: phone ? encryptDataUrl(phone) : null,
       phoneHash,
-      email: email ? encryptDataUrl(email) : null,
+      email: employeeEmail ? encryptDataUrl(employeeEmail) : null,
+      emailHash,
       position: position || null,
       photoUrl: encryptDataUrl(photoDataUrl),
       matricule,
@@ -250,6 +267,11 @@ export async function createEmployeeAction(
       idNumber: idNumber ? encryptDataUrl(idNumber) : null,
     },
   });
+
+  if (org.authChannel === "EMAIL" && employeeEmail) {
+    const { sendEmployeeInvitationEmail } = await import("@/lib/email");
+    await sendEmployeeInvitationEmail(employeeEmail, org.name, firstName);
+  }
 
   await logAudit({
     orgId: session.orgId,

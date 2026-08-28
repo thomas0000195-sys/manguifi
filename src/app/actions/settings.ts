@@ -28,6 +28,7 @@ export async function updateSettingsAction(
   const attendanceRetentionMonthsRaw = Number(formData.get("attendanceRetentionMonths") || 24);
   const attendanceRetentionMonths =
     retentionEnabled && attendanceRetentionMonthsRaw >= 1 ? Math.floor(attendanceRetentionMonthsRaw) : null;
+  const authChannel = formData.get("authChannel") === "EMAIL" ? "EMAIL" : "WHATSAPP";
 
   await prisma.organization.update({
     where: { id: session.orgId },
@@ -41,6 +42,7 @@ export async function updateSettingsAction(
       matriculePrefix,
       idNumberEnabled,
       attendanceRetentionMonths,
+      authChannel,
     },
   });
 
@@ -87,7 +89,7 @@ export async function exportOrgDataAction() {
       teams,
       employees: employees.map((e) => ({
         ...e,
-        phone: decryptDataUrl(e.phone),
+        phone: e.phone ? decryptDataUrl(e.phone) : null,
         email: e.email ? decryptDataUrl(e.email) : null,
         photoUrl: e.photoUrl ? decryptDataUrl(e.photoUrl) : null,
         dateOfBirth: e.dateOfBirth ? decryptDataUrl(e.dateOfBirth) : null,
@@ -118,7 +120,7 @@ async function buildEmployeeDataExport(employee: {
   id: string;
   firstName: string;
   lastName: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   photoUrl: string | null;
   dateOfBirth: string | null;
@@ -137,7 +139,7 @@ async function buildEmployeeDataExport(employee: {
       exportedAt: new Date().toISOString(),
       employee: {
         ...employee,
-        phone: decryptDataUrl(employee.phone),
+        phone: employee.phone ? decryptDataUrl(employee.phone) : null,
         email: employee.email ? decryptDataUrl(employee.email) : null,
         photoUrl: employee.photoUrl ? decryptDataUrl(employee.photoUrl) : null,
         dateOfBirth: employee.dateOfBirth ? decryptDataUrl(employee.dateOfBirth) : null,

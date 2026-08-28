@@ -28,7 +28,8 @@ export default async function EmployesPage() {
 
   const employees = employeesRaw.map((e) => ({
     ...e,
-    phone: decryptDataUrl(e.phone),
+    phone: e.phone ? decryptDataUrl(e.phone) : null,
+    email: e.email ? decryptDataUrl(e.email) : null,
     photoUrl: e.photoUrl ? decryptDataUrl(e.photoUrl) : null,
   }));
 
@@ -38,6 +39,7 @@ export default async function EmployesPage() {
       teams={teams}
       canManage={user.role === "ADMIN"}
       idNumberEnabled={user.org.idNumberEnabled}
+      authChannel={user.org.authChannel}
     />
   );
 }
