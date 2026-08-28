@@ -158,7 +158,11 @@ model Employee {
   position   String?
   status     EmployeeStatus @default(ACTIF)
   photoUrl   String?
-  matricule  String         @unique
+  // Unique per organization, not globally — every org defaults to the same
+  // "MGF" prefix (Organization.matriculePrefix), so two different companies
+  // both on the default WILL produce the same matricule for their first
+  // employee. A global @unique here breaks the second org to sign up.
+  matricule  String
   // Encrypted at rest (AES-256-GCM, see lib/crypto.ts) — dateOfBirth is
   // stored as an encrypted ISO date string rather than a native DateTime
   // since it's never sorted/filtered by value, only displayed.
@@ -173,6 +177,8 @@ model Employee {
   attendances   Attendance[]
   justificatifs Justificatif[]
   overtimes     OvertimeRecord[]
+
+  @@unique([orgId, matricule])
 }
 
 model User {
