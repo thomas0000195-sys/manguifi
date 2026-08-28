@@ -17,7 +17,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # A placeholder DATABASE_URL is enough here — this only runs `prisma generate`
 # (build-time codegen), not a real DB connection. The real one is supplied
 # at container start via docker-compose / the platform's env settings.
-RUN DATABASE_URL="file:./build-placeholder.db" npx prisma generate
+# Postgres since the pilot deployment (see SESSION_REPORT.md) — must match
+# the "postgresql" provider in schema.prisma or `generate` fails.
+RUN DATABASE_URL="postgresql://user:pass@localhost:5432/build_placeholder" npx prisma generate
 RUN npm run build
 
 # ---- runner: minimal production image ----

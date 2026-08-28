@@ -5,7 +5,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: "file:/app/data/manguifi.db"
+      # Postgres (Neon or equivalent) since the pilot deployment — see
+      # SESSION_REPORT.md. No longer a local SQLite file, so nothing to
+      # volume-mount for the database itself.
+      DATABASE_URL: ${DATABASE_URL}
       AUTH_SECRET: ${AUTH_SECRET}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       CRON_SECRET: ${CRON_SECRET}
@@ -19,11 +22,12 @@ services:
       NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
     volumes:
-      # Persists the SQLite database and the automated backups across
-      # redeploys — without this, `docker compose up --build` wipes the DB.
-      - manguifi-data:/app/data
+      # The database itself now lives in Postgres (Neon), not on this
+      # volume — this only persists the local backup JSON files across
+      # redeploys. See the known limitation about /api/cron/backup not
+      # working as-is on serverless hosts (SESSION_REPORT.md) — on a VPS
+      # running this Dockerfile, local disk is fine.
       - manguifi-backups:/app/backups
 
 volumes:
-  manguifi-data:
   manguifi-backups:
