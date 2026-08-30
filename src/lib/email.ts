@@ -66,16 +66,30 @@ export async function sendPasswordResetEmail(to: string, rawToken: string) {
  * auth channel (Organization.authChannel === "EMAIL") instead of WhatsApp.
  * Same delivery mechanism (Resend) as the password reset email above, but a
  * distinct, non-technical template aimed at a first-time employee user.
+ *
+ * PILOT-ONLY REDIRECT: while the Resend account has no verified sending
+ * domain, it can only deliver to the account owner's own address — every
+ * other recipient is rejected outright. Setting EMAIL_OTP_TEST_OVERRIDE_TO
+ * reroutes every employee OTP email to that one inbox instead, with the
+ * real intended recipient named in the subject/body, so an admin can
+ * relay the code by hand during a pilot. Remove the env var once a domain
+ * is verified — this must never run in real production.
  */
 export async function sendEmployeeOtpEmail(to: string, code: string) {
   const resend = getResendClient();
   if (!resend) return false;
 
+  const overrideTo = process.env.EMAIL_OTP_TEST_OVERRIDE_TO;
+  const actualTo = overrideTo || to;
+  const subject = overrideTo
+    ? `${code} — code pour ${to} (relais pilote)`
+    : `${code} — votre code de connexion Manguifi`;
+
   try {
     const { error } = await resend.emails.send({
       from: FROM,
-      to,
-      subject: `${code} — votre code de connexion Manguifi`,
+      to: actualTo,
+      subject,
       html: `
         <div style="font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #0b1324;">
           <div style="background: #0b1a36; padding: 20px 24px; border-radius: 14px 14px 0 0;">
@@ -83,6 +97,13 @@ export async function sendEmployeeOtpEmail(to: string, code: string) {
           </div>
           <div style="border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 14px 14px; padding: 28px 24px;">
             <h1 style="font-size: 18px; margin: 0 0 12px;">Votre code de connexion</h1>
+            ${
+              overrideTo
+                ? `<p style="font-size: 13px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; color: #9a3412; margin: 0 0 16px;">
+                    Relais pilote — ce code est destiné à <strong>${to}</strong>. Communiquez-le à cette personne.
+                  </p>`
+                : ""
+            }
             <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 20px;">
               Entrez ce code dans l'application pour vous connecter à votre espace employé. Il expire dans 10 minutes.
             </p>
@@ -117,12 +138,17 @@ export async function sendEmployeeInvitationEmail(to: string, orgName: string, f
   if (!resend) return false;
 
   const loginUrl = `${getAppUrl()}/connexion-employe`;
+  const overrideTo = process.env.EMAIL_OTP_TEST_OVERRIDE_TO;
+  const actualTo = overrideTo || to;
+  const subject = overrideTo
+    ? `Invitation pour ${to} (relais pilote) — ${orgName}`
+    : `Bienvenue sur Manguifi — ${orgName}`;
 
   try {
     const { error } = await resend.emails.send({
       from: FROM,
-      to,
-      subject: `Bienvenue sur Manguifi — ${orgName}`,
+      to: actualTo,
+      subject,
       html: `
         <div style="font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #0b1324;">
           <div style="background: #0b1a36; padding: 20px 24px; border-radius: 14px 14px 0 0;">
@@ -130,6 +156,13 @@ export async function sendEmployeeInvitationEmail(to: string, orgName: string, f
           </div>
           <div style="border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 14px 14px; padding: 28px 24px;">
             <h1 style="font-size: 18px; margin: 0 0 12px;">Bonjour ${firstName},</h1>
+            ${
+              overrideTo
+                ? `<p style="font-size: 13px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; color: #9a3412; margin: 0 0 16px;">
+                    Relais pilote — cette invitation est destinée à <strong>${to}</strong>.
+                  </p>`
+                : ""
+            }
             <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px;">
               <strong>${orgName}</strong> vous a ajouté sur Manguifi, l'application utilisée pour votre pointage.
               Vous n'avez pas besoin de créer de mot de passe : à chaque connexion, un code à usage unique vous sera envoyé par email.
