@@ -8,6 +8,8 @@ import {
   Smartphone,
   ArrowRight,
   CheckCircle2,
+  Briefcase,
+  MessageCircle,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -37,15 +39,15 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/connexion"
-              className="hidden text-sm font-medium text-navy-900 hover:text-navy-700 sm:block"
+              className="hidden items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted transition hover:border-navy-300 hover:text-navy-900 sm:inline-flex"
             >
-              Connexion
+              <Briefcase className="h-3.5 w-3.5" /> Espace Pro
             </Link>
             <Link
-              href="/inscription"
-              className="rounded-full bg-navy-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-800 active:scale-[0.98]"
+              href="/connexion-employe"
+              className="inline-flex items-center gap-2 rounded-full bg-navy-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-800 active:scale-[0.98]"
             >
-              Essayer gratuitement
+              <MessageCircle className="h-4 w-4" /> Connexion employé
             </Link>
           </div>
         </div>
@@ -70,22 +72,26 @@ export default function LandingPage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
-                href="/inscription"
+                href="/connexion-employe"
                 className="group inline-flex items-center gap-2 rounded-full bg-navy-900 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-navy-900/20 transition hover:bg-navy-800 active:scale-[0.98]"
               >
-                Créer mon compte entreprise
+                <MessageCircle className="h-4 w-4" />
+                Se connecter (employé)
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
               <Link
-                href="/connexion"
+                href="/inscription"
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-6 py-3.5 text-sm font-semibold text-navy-900 transition hover:bg-navy-50"
               >
-                J&apos;ai déjà un compte
+                Créer mon compte entreprise
               </Link>
             </div>
             <p className="mt-4 text-xs text-muted">
-              Moins de 5 minutes entre l&apos;inscription et le premier
-              pointage réel.
+              Employé : connexion instantanée par WhatsApp ou email, sans mot
+              de passe.{" "}
+              <Link href="/connexion" className="font-medium text-navy-800 hover:underline">
+                Espace Pro (admin/responsable)
+              </Link>
             </p>
           </div>
 
@@ -218,6 +224,12 @@ export default function LandingPage() {
         >
           Démarrer maintenant <ArrowRight className="h-4 w-4" />
         </Link>
+        <p className="mt-4 text-sm text-muted">
+          Déjà employé d&apos;une entreprise sur Manguifi ?{" "}
+          <Link href="/connexion-employe" className="font-medium text-navy-800 hover:underline">
+            Connectez-vous ici
+          </Link>
+        </p>
       </section>
 
       <footer className="border-t border-border py-8 text-center text-xs text-muted">
