@@ -245,6 +245,15 @@ export async function createEmployeeAction(
     employeeEmail = email || null;
   }
 
+  // An optional email works as a login channel too, independently of the
+  // org's default — hash it whenever one is provided, whichever branch
+  // above set it.
+  if (employeeEmail && !emailHash) {
+    emailHash = hashEmail(employeeEmail);
+    const existingEmail = await prisma.employee.findUnique({ where: { emailHash } });
+    if (existingEmail) return { error: "Cet email est déjà utilisé par un autre employé." };
+  }
+
   const team = await prisma.team.findFirst({ where: { id: teamId, orgId: session.orgId } });
   if (!team) return { error: "Équipe introuvable." };
 
@@ -406,6 +415,13 @@ export async function importEmployeesCsvAction(
     (await prisma.employee.findMany({ select: { phoneHash: true } })).map((e) => e.phoneHash)
   );
   const priorChunkHashSet = new Set(priorChunkPhoneHashes);
+  // Same idea for email — an employee can log in with either, so a
+  // duplicate email is just as much a conflict as a duplicate phone.
+  const existingEmailHashes = new Set(
+    (await prisma.employee.findMany({ select: { emailHash: true } }))
+      .map((e) => e.emailHash)
+      .filter((h): h is string => h !== null)
+  );
 
   let count = 0;
   let skipped = 0;
@@ -451,7 +467,23 @@ export async function importEmployeesCsvAction(
       continue;
     }
 
+    const emailHash = email ? hashEmail(email) : null;
+    if (emailHash && (existingEmailHashes.has(emailHash) || seenInFile.has(emailHash))) {
+      skipped++;
+      results.push({
+        row: rowNumber,
+        firstName,
+        lastName,
+        status: "error",
+        reason: existingEmailHashes.has(emailHash)
+          ? "Email déjà utilisé par un employé existant."
+          : "Doublon dans le fichier.",
+      });
+      continue;
+    }
+
     seenInFile.add(phoneHash);
+    if (emailHash) seenInFile.add(emailHash);
 
     if (!dryRun) {
       const matricule = await generateMatricule(session.orgId);
@@ -464,6 +496,7 @@ export async function importEmployeesCsvAction(
           phone: encryptDataUrl(phone),
           phoneHash,
           email: email ? encryptDataUrl(email) : null,
+          emailHash,
           position: position || null,
           matricule,
         },

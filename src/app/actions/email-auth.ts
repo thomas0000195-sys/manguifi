@@ -12,9 +12,12 @@ export type EmailOtpRequestState = { error?: string; submitted?: boolean; email?
 export type EmailOtpVerifyState = { error?: string };
 
 /**
- * Email equivalent of requestEmployeeOtpAction (whatsapp-auth.ts) — used
- * only for employees whose organization has Organization.authChannel set
- * to EMAIL (pilot / pre-Meta-approval testing). Same generic rejection
+ * Email equivalent of requestEmployeeOtpAction (whatsapp-auth.ts). Works for
+ * any employee that has an email on file, independently of the org's
+ * Organization.authChannel setting — that setting only controls which
+ * field the "Ajouter un employé" form asks for and which invitation
+ * template is sent, not which channel is allowed to log in. An employee
+ * with both a phone and an email can use either. Same generic rejection
  * message as the WhatsApp path, for the same anti-enumeration reason.
  */
 export async function requestEmployeeEmailOtpAction(
@@ -31,10 +34,9 @@ export async function requestEmployeeEmailOtpAction(
 
   const employee = await prisma.employee.findFirst({
     where: { emailHash: hashEmail(email), status: "ACTIF" },
-    include: { org: true },
   });
 
-  if (!employee || employee.org.authChannel !== "EMAIL") {
+  if (!employee) {
     return {
       error: "Cet email n'est associé à aucune entreprise. Contactez votre responsable pour être ajouté.",
     };
@@ -61,9 +63,9 @@ export async function verifyEmployeeEmailOtpAction(
 
   const employee = await prisma.employee.findFirst({
     where: { emailHash: hashEmail(email), status: "ACTIF" },
-    include: { user: true, org: true },
+    include: { user: true },
   });
-  if (!employee || employee.org.authChannel !== "EMAIL") {
+  if (!employee) {
     return { error: "Cet email n'est associé à aucune entreprise. Contactez votre responsable pour être ajouté." };
   }
 
