@@ -48,8 +48,12 @@ export function decryptDataUrl(stored: string): string {
  * Deterministic HMAC-SHA256 of an email address — same rationale as
  * hashPhone (lib/phone.ts): User.email is encrypted at rest, so exact-match
  * login lookups go through this hash instead of the ciphertext column.
+ * Normalizes case/whitespace first — mobile keyboards routinely
+ * auto-capitalize a bare `type="text"` field (the unified phone-or-email
+ * login input can't be `type="email"`), and email addresses are treated
+ * case-insensitively everywhere else in practice.
  */
 export function hashEmail(email: string): string {
   const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
-  return crypto.createHmac("sha256", secret).update(email).digest("hex");
+  return crypto.createHmac("sha256", secret).update(email.trim().toLowerCase()).digest("hex");
 }

@@ -81,6 +81,9 @@ export default function WhatsAppLoginForm() {
             name={isEmail ? "email" : "phone"}
             type="text"
             required
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="Ex. 77 123 45 67 ou vous@entreprise.com"
