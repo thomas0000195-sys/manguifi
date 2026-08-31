@@ -7,6 +7,7 @@ import {
   createSiteAction,
   createTeamAction,
   createResponsableAction,
+  assignResponsableToSiteAction,
   regenerateSiteQrAction,
   toggleSiteActiveAction,
 } from "@/app/actions/company";
@@ -41,6 +42,7 @@ type Site = {
   active: boolean;
   qrDataUrl: string | null;
   teams: Team[];
+  responsables: { user: { id: string; email: string | null; phone: string | null } }[];
 };
 
 function downloadSitePoster(site: Site) {
@@ -80,6 +82,7 @@ export default function EquipesClient({
   const [showSite, setShowSite] = useState(false);
   const [showTeamFor, setShowTeamFor] = useState<string | null>(null);
   const [showRespFor, setShowRespFor] = useState<string | null>(null);
+  const [showRespSiteFor, setShowRespSiteFor] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -130,6 +133,15 @@ export default function EquipesClient({
       if (res.error) { toast.error(res.error); return; }
       toast.success("Responsable ajouté");
       setShowRespFor(null);
+    });
+  }
+
+  function handleRespSite(formData: FormData) {
+    startTransition(async () => {
+      const res = await assignResponsableToSiteAction({}, formData);
+      if (res.error) { toast.error(res.error); return; }
+      toast.success("Responsable de site ajouté");
+      setShowRespSiteFor(null);
     });
   }
 
@@ -200,6 +212,21 @@ export default function EquipesClient({
                       <AlertTriangle className="h-3 w-3" /> Position GPS non configurée
                     </p>
                   )}
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    {site.responsables.map((r) => (
+                      <span key={r.user.id} className="rounded-full bg-green-50 px-2 py-0.5 text-[11px] text-green-700">
+                        Responsable de site : {r.user.email ?? r.user.phone}
+                      </span>
+                    ))}
+                    {canManage && (
+                      <button
+                        onClick={() => setShowRespSiteFor(site.id)}
+                        className="flex items-center gap-1 text-[11px] font-medium text-navy-800 hover:underline"
+                      >
+                        <UserCog className="h-3 w-3" /> + Responsable de site
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
               {canManage && (
@@ -331,6 +358,20 @@ export default function EquipesClient({
             <input name="password" type="password" minLength={8} placeholder="Mot de passe (nouveau compte uniquement)" className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100" />
             <p className="text-xs text-muted">
               Si cet email est déjà un responsable de votre entreprise, il sera simplement ajouté à cette équipe (laissez le mot de passe vide).
+            </p>
+            <SubmitButton pending={pending} label="Ajouter le responsable" />
+          </form>
+        </Modal>
+      )}
+
+      {showRespSiteFor && (
+        <Modal onClose={() => setShowRespSiteFor(null)} title="Ajouter un responsable de site">
+          <form action={handleRespSite} className="space-y-3">
+            <input type="hidden" name="siteId" value={showRespSiteFor} />
+            <input name="email" type="email" required placeholder="Email" className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100" />
+            <input name="password" type="password" minLength={8} placeholder="Mot de passe (nouveau compte uniquement)" className="w-full rounded-xl border border-border px-4 py-3 text-sm outline-none focus:border-navy-600 focus:ring-2 focus:ring-navy-100" />
+            <p className="text-xs text-muted">
+              Ce responsable verra automatiquement toutes les équipes de ce site, y compris celles créées plus tard. Si cet email est déjà un responsable de votre entreprise, il sera simplement ajouté à ce site (laissez le mot de passe vide).
             </p>
             <SubmitButton pending={pending} label="Ajouter le responsable" />
           </form>

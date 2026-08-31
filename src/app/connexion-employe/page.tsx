@@ -14,7 +14,13 @@ export default function ConnexionEmployePage() {
             Manguifi
           </span>
         </Link>
-        <div className="rounded-2xl border border-border bg-surface p-7 shadow-sm">
+        <div className="relative rounded-2xl border border-border bg-surface p-7 shadow-sm">
+          <Link
+            href="/connexion"
+            className="absolute top-4 right-4 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted transition hover:border-navy-300 hover:text-navy-900"
+          >
+            Espace Pro
+          </Link>
           <h1 className="text-xl font-bold text-navy-950">Espace employé</h1>
           <p className="mt-1 text-sm text-muted">
             Connectez-vous avec votre numéro WhatsApp — aucun mot de passe requis.
@@ -23,12 +29,6 @@ export default function ConnexionEmployePage() {
             <WhatsAppLoginForm />
           </div>
         </div>
-        <p className="mt-6 text-center text-sm text-muted">
-          Vous êtes administrateur ou responsable ?{" "}
-          <Link href="/connexion" className="font-semibold text-navy-900 hover:underline">
-            Se connecter par email
-          </Link>
-        </p>
       </div>
     </div>
   );

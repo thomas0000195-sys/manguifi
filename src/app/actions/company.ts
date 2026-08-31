@@ -603,6 +603,93 @@ export async function createResponsableAction(
   return { success: true, id: user.id };
 }
 
+const responsableSiteSchema = z.object({
+  fullEmail: z.string().email("Email invalide"),
+  password: z.string().optional().or(z.literal("")),
+  siteId: z.string().min(1),
+});
+
+/**
+ * Same idea as createResponsableAction, but scopes the responsable to every
+ * team of a Site (present and future, via getScopedTeamIds resolving
+ * ResponsableSite → Team.siteId at read time) instead of one team at a
+ * time — for organizations where "responsable" maps to "runs this site",
+ * not "runs this one team".
+ */
+export async function assignResponsableToSiteAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await requireSession();
+  if (session.role !== "ADMIN") return { error: "Action réservée à l'administrateur." };
+  const parsed = responsableSiteSchema.safeParse({
+    fullEmail: formData.get("email"),
+    password: formData.get("password") || "",
+    siteId: formData.get("siteId"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
+  }
+  const { fullEmail, password, siteId } = parsed.data;
+
+  const site = await prisma.site.findFirst({ where: { id: siteId, orgId: session.orgId } });
+  if (!site) return { error: "Site introuvable." };
+
+  const existing = await prisma.user.findUnique({ where: { emailHash: hashEmail(fullEmail) } });
+
+  if (existing) {
+    if (existing.orgId !== session.orgId || existing.role !== "RESPONSABLE") {
+      return { error: "Un compte existe déjà avec cet email et n'est pas un responsable de cette entreprise." };
+    }
+    const alreadyLinked = await prisma.responsableSite.findUnique({
+      where: { userId_siteId: { userId: existing.id, siteId } },
+    });
+    if (alreadyLinked) return { error: "Ce responsable est déjà assigné à ce site." };
+
+    await prisma.responsableSite.create({ data: { userId: existing.id, siteId } });
+    await logAudit({
+      orgId: session.orgId,
+      userId: session.userId,
+      action: "ASSIGN_RESPONSABLE_SITE",
+      entityType: "User",
+      entityId: existing.id,
+      details: `${fullEmail} → ${site.name}`,
+    });
+    revalidatePath("/equipes");
+    return { success: true, id: existing.id };
+  }
+
+  if (!password || password.length < 8) {
+    return { error: "8 caractères minimum pour le mot de passe d'un nouveau compte." };
+  }
+
+  const { hashPassword } = await import("@/lib/auth");
+  const passwordHash = await hashPassword(password);
+
+  const user = await prisma.user.create({
+    data: {
+      orgId: session.orgId,
+      email: encryptDataUrl(fullEmail),
+      emailHash: hashEmail(fullEmail),
+      passwordHash,
+      role: "RESPONSABLE",
+      responsableSites: { create: { siteId } },
+    },
+  });
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "CREATE_RESPONSABLE",
+    entityType: "User",
+    entityId: user.id,
+    details: `${fullEmail} (site: ${site.name})`,
+  });
+
+  revalidatePath("/equipes");
+  return { success: true, id: user.id };
+}
+
 /**
  * Lets an admin fix a mistyped WhatsApp number — only while the employee
  * hasn't activated yet (invitationStatus EN_ATTENTE). Once they've logged

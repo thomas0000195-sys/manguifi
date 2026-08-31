@@ -49,6 +49,7 @@ export default async function EspacePage() {
     OUBLI_DEPART: { text: "Départ non pointé hier", color: "text-red-500 bg-red-50" },
     ABSENT_NON_JUSTIFIE: { text: "Pas encore pointé", color: "text-muted bg-navy-50" },
     NON_PLANIFIE: { text: "Pas encore pointé", color: "text-muted bg-navy-50" },
+    REPOS_PLANIFIE: { text: "Jour de repos planifié", color: "text-navy-700 bg-navy-50" },
   };
   const s = statusLabel[status.status] ?? statusLabel.NON_PLANIFIE;
 

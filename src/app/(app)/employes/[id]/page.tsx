@@ -2,7 +2,7 @@ import { requireUser, assertEmployeeInScope } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { decryptDataUrl } from "@/lib/crypto";
 import Link from "next/link";
-import { ArrowLeft, Mail, CheckCircle2, Clock } from "lucide-react";
+import { ArrowLeft, Mail, CheckCircle2, Clock, Calendar } from "lucide-react";
 import ProfileCard from "./ProfileCard";
 import EmployeeAccountPanel from "./EmployeeAccountPanel";
 import EmployeePhotoUpload from "./EmployeePhotoUpload";
@@ -73,6 +73,16 @@ export default async function EmployeeProfilePage({
           />
         </div>
       </div>
+
+      <Link
+        href={`/employes/${employee.id}/planning`}
+        className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-surface p-4 hover:bg-navy-50/40"
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-navy-950">
+          <Calendar className="h-4 w-4 text-navy-800" /> Planning
+        </span>
+        <span className="text-xs text-muted">Jours travaillés / repos</span>
+      </Link>
 
       <ProfileCard employee={employee} photoDataUrl={photoDataUrl} />
 

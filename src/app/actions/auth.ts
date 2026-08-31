@@ -124,7 +124,7 @@ export async function loginAction(
 
 export async function logoutAction() {
   await destroySession();
-  redirect("/connexion");
+  redirect("/connexion-employe");
 }
 
 export type ResetRequestState = {

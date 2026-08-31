@@ -18,6 +18,7 @@ export default async function EquipesPage() {
           responsables: { include: { user: true } },
         },
       },
+      responsables: { include: { user: true } },
     },
     orderBy: { createdAt: "asc" },
   });
@@ -29,6 +30,14 @@ export default async function EquipesPage() {
     visibleSites.map(async (s) => ({
       ...s,
       qrDataUrl: user.role === "ADMIN" ? await generateSiteQrDataUrl(s.qrToken) : null,
+      responsables: s.responsables.map((r) => ({
+        ...r,
+        user: {
+          ...r.user,
+          email: r.user.email ? decryptDataUrl(r.user.email) : null,
+          phone: r.user.phone ? decryptDataUrl(r.user.phone) : null,
+        },
+      })),
       teams: s.teams.map((t) => ({
         ...t,
         responsables: t.responsables.map((r) => ({

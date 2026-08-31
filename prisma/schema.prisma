@@ -102,6 +102,7 @@ model Organization {
   justificatifs Justificatif[]
   auditLogs     AuditLog[]
   overtimes     OvertimeRecord[]
+  workSchedules WorkSchedule[]
 }
 
 model Site {
@@ -120,6 +121,7 @@ model Site {
 
   teams       Team[]
   attendances Attendance[]
+  responsables ResponsableSite[]
 }
 
 model Team {
@@ -177,6 +179,7 @@ model Employee {
   attendances   Attendance[]
   justificatifs Justificatif[]
   overtimes     OvertimeRecord[]
+  workSchedules WorkSchedule[]
 
   @@unique([orgId, matricule])
 }
@@ -200,11 +203,13 @@ model User {
   createdAt    DateTime @default(now())
 
   responsableTeams ResponsableTeam[]
+  responsableSites ResponsableSite[]
   auditLogs        AuditLog[]
   reviewedJustificatifs Justificatif[] @relation("ReviewedBy")
   correctedAttendances  Attendance[]   @relation("CorrectedBy")
   validatedOvertimes    OvertimeRecord[] @relation("ValidatedBy")
   passwordResetTokens   PasswordResetToken[]
+  createdWorkSchedules  WorkSchedule[]
 }
 
 model PasswordResetToken {
@@ -227,6 +232,16 @@ model ResponsableTeam {
   @@unique([userId, teamId])
 }
 
+model ResponsableSite {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, siteId])
+}
+
 model Schedule {
   id                String   @id @default(cuid())
   orgId             String
@@ -240,6 +255,49 @@ model Schedule {
   endTime           String
   toleranceMinutes  Int      @default(10)
   createdAt         DateTime @default(now())
+}
+
+/**
+ * A versioned calendar-based work plan for one employee — the irregular-
+ * rotation counterpart to Schedule's fixed weekly pattern (see
+ * attendance-logic.ts getEffectiveScheduleForDate). Never UPDATE a
+ * WorkSchedule that has already been used to compute a past day's status:
+ * to change a plan going forward, close this one (set effectiveTo) and
+ * create a new one starting the next day, so history never gets
+ * recalculated retroactively.
+ */
+model WorkSchedule {
+  id            String    @id @default(cuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  label         String?
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdById   String
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now())
+
+  days WorkScheduleDay[]
+
+  @@index([employeeId, effectiveFrom])
+}
+
+/** One calendar day within a WorkSchedule — see WorkSchedule for the versioning rule. */
+model WorkScheduleDay {
+  id               String       @id @default(cuid())
+  workScheduleId   String
+  workSchedule     WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Cascade)
+  date             DateTime
+  isWorkingDay     Boolean
+  // Required when isWorkingDay = true (enforced in the server action, not
+  // the DB) — a repos day has no shift, so no times to set.
+  startTime        String?
+  endTime          String?
+  toleranceMinutes Int          @default(10)
+
+  @@unique([workScheduleId, date])
 }
 
 model Attendance {

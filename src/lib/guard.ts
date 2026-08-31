@@ -5,7 +5,7 @@ import type { Role } from "@prisma/client";
 
 export async function requireUser(allowedRoles?: Role[]) {
   const user = await getCurrentUser();
-  if (!user) redirect("/connexion");
+  if (!user) redirect("/connexion-employe");
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     redirect(user.role === "EMPLOYEE" ? "/espace" : "/dashboard");
   }
@@ -23,8 +23,19 @@ export async function getScopedTeamIds(
   userId: string
 ): Promise<string[] | null> {
   if (role === "ADMIN") return null;
-  const links = await prisma.responsableTeam.findMany({ where: { userId } });
-  return links.map((l) => l.teamId);
+  const [teamLinks, siteLinks] = await Promise.all([
+    prisma.responsableTeam.findMany({ where: { userId } }),
+    prisma.responsableSite.findMany({ where: { userId } }),
+  ]);
+  const teamIds = new Set(teamLinks.map((l) => l.teamId));
+  if (siteLinks.length > 0) {
+    const siteTeams = await prisma.team.findMany({
+      where: { siteId: { in: siteLinks.map((l) => l.siteId) } },
+      select: { id: true },
+    });
+    siteTeams.forEach((t) => teamIds.add(t.id));
+  }
+  return Array.from(teamIds);
 }
 
 /**

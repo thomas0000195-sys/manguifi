@@ -1,6 +1,9 @@
 import { prisma } from "./prisma";
 import type { Attendance, Employee, Schedule } from "@prisma/client";
 
+/** The subset of Schedule's shape that the shift-time math below actually needs. */
+type ShiftTimes = { startTime: string; endTime: string; toleranceMinutes: number };
+
 export function startOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -11,6 +14,26 @@ export function endOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(23, 59, 59, 999);
   return d;
+}
+
+/**
+ * "YYYY-MM-DD" -> local midnight Date. Plain `new Date("2026-08-01")`
+ * parses as UTC midnight per spec, which silently shifts to the previous
+ * calendar day once formatted back in any timezone ahead of UTC — exactly
+ * the class of bug this avoids for date-only strings round-tripped
+ * between client and server (see toLocalDateString, its inverse).
+ */
+export function parseLocalDate(iso: string): Date {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Inverse of parseLocalDate — local "YYYY-MM-DD", not toISOString's UTC one. */
+export function toLocalDateString(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 /** `date` at a given number of minutes past its own midnight. */
@@ -26,7 +49,7 @@ function parseTimeToMinutes(t: string) {
 }
 
 /** A schedule "wraps" past midnight when its end time is <= its start time. */
-function isOvernightSchedule(schedule: Schedule) {
+function isOvernightSchedule(schedule: ShiftTimes) {
   return parseTimeToMinutes(schedule.endTime) <= parseTimeToMinutes(schedule.startTime);
 }
 
@@ -57,6 +80,52 @@ export async function getScheduleForEmployee(
     s.daysOfWeek.split(",").includes(String(day))
   );
   return teamMatch ?? null;
+}
+
+export type EffectiveSchedule =
+  | ({ kind: "shift" } & ShiftTimes)
+  | { kind: "repos" }
+  | { kind: "none" };
+
+/**
+ * Resolves what an employee is expected to do on `date`, calendar plan
+ * first. A WorkSchedule (see prisma schema) is a versioned, per-employee
+ * calendar that — while active — entirely replaces the fixed weekly
+ * Schedule for that employee, so only one system is ever "the" answer for
+ * a given day: no ambiguity about which one wins.
+ *
+ * "none" means no WorkSchedule is active for this employee on this date —
+ * the caller falls back to getScheduleForEmployee (the weekly pattern), or
+ * ultimately NON_PLANIFIE, exactly as before this feature existed.
+ */
+export async function getEffectiveScheduleForDate(
+  employee: Employee,
+  date: Date
+): Promise<EffectiveSchedule> {
+  const day = startOfDay(date);
+  const workSchedule = await prisma.workSchedule.findFirst({
+    where: {
+      employeeId: employee.id,
+      effectiveFrom: { lte: day },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: day } }],
+    },
+    orderBy: { effectiveFrom: "desc" },
+  });
+  if (!workSchedule) return { kind: "none" };
+
+  const workDay = await prisma.workScheduleDay.findUnique({
+    where: { workScheduleId_date: { workScheduleId: workSchedule.id, date: day } },
+  });
+  if (!workDay || !workDay.isWorkingDay || !workDay.startTime || !workDay.endTime) {
+    return { kind: "repos" };
+  }
+
+  return {
+    kind: "shift",
+    startTime: workDay.startTime,
+    endTime: workDay.endTime,
+    toleranceMinutes: workDay.toleranceMinutes,
+  };
 }
 
 /**
@@ -154,7 +223,8 @@ export type DailyStatus = {
     | "RETARD"
     | "DEPART_ANTICIPE"
     | "OUBLI_DEPART"
-    | "NON_PLANIFIE";
+    | "NON_PLANIFIE"
+    | "REPOS_PLANIFIE";
   lateMinutes: number;
   earlyLeaveMinutes: number;
   workedMinutes: number;
@@ -173,8 +243,26 @@ export async function computeDailyStatus(
   employee: Employee,
   date: Date
 ): Promise<DailyStatus> {
-  const schedule = await getScheduleForEmployee(employee, date);
   const now = new Date();
+
+  const effective = await getEffectiveScheduleForDate(employee, date);
+  if (effective.kind === "repos") {
+    return {
+      employee,
+      date,
+      scheduled: false,
+      arrivee: null,
+      depart: null,
+      status: "REPOS_PLANIFIE",
+      lateMinutes: 0,
+      earlyLeaveMinutes: 0,
+      workedMinutes: 0,
+      overtimeMinutes: 0,
+      plannedMinutes: 0,
+    };
+  }
+  const schedule: ShiftTimes | null =
+    effective.kind === "shift" ? effective : await getScheduleForEmployee(employee, date);
 
   if (!schedule) {
     const attendances = await prisma.attendance.findMany({
