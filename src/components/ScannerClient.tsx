@@ -47,17 +47,47 @@ function playBeep() {
   }
 }
 
-function getPosition(): Promise<GeolocationPosition> {
+function getPositionOnce(options: PositionOptions): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("La géolocalisation n'est pas disponible sur cet appareil."));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 12000,
-    });
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
   });
+}
+
+/**
+ * High-accuracy GPS can flat-out fail to get a fix indoors (offices,
+ * buildings with no clear sky view) well within its own timeout, which
+ * previously surfaced as the exact same "refusée ou indisponible" message
+ * as an actual permission denial — impossible to tell apart, and blaming
+ * a permission problem that doesn't exist. First try is real GPS but
+ * patient; on POSITION_UNAVAILABLE or TIMEOUT (never on a genuine
+ * permission denial, which can't succeed on retry) fall back once to a
+ * network/WiFi-based low-accuracy fix, which resolves much faster indoors.
+ */
+async function getPosition(): Promise<GeolocationPosition> {
+  if (!navigator.geolocation) {
+    throw new Error("La géolocalisation n'est pas disponible sur cet appareil.");
+  }
+  try {
+    return await getPositionOnce({ enableHighAccuracy: true, timeout: 15000 });
+  } catch (err) {
+    const geoErr = err as GeolocationPositionError;
+    if (geoErr.code === geoErr.PERMISSION_DENIED) throw err;
+    return await getPositionOnce({ enableHighAccuracy: false, timeout: 15000 });
+  }
+}
+
+function describeGeoError(err: unknown): string {
+  const code = (err as GeolocationPositionError)?.code;
+  if (code === 1) {
+    return "Localisation refusée par le navigateur. Autorisez la localisation pour ce site dans les réglages de votre téléphone, puis réessayez.";
+  }
+  if (code === 3) {
+    return "La localisation prend trop de temps à répondre (signal GPS faible, souvent en intérieur). Sortez à l'air libre ou approchez-vous d'une fenêtre, puis réessayez.";
+  }
+  if (code === 2) {
+    return "Position introuvable pour le moment. Vérifiez que la localisation est activée sur le téléphone (pas seulement dans le navigateur), puis réessayez.";
+  }
+  return "Localisation indisponible. Réessayez dans un instant.";
 }
 
 export default function ScannerClient({
@@ -153,11 +183,9 @@ export default function ScannerClient({
       const pos = await getPosition();
       positionRef.current = pos;
       setPhase("idle");
-    } catch {
+    } catch (err) {
       setPhase("geo-denied");
-      setGeoError(
-        "Localisation refusée ou indisponible. Le pointage nécessite d'activer la localisation pour confirmer que vous êtes bien sur place."
-      );
+      setGeoError(describeGeoError(err));
     }
   }, []);
 
