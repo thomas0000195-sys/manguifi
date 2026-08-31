@@ -8,7 +8,7 @@ import { startOfDay, parseLocalDate, toLocalDateString } from "@/lib/attendance-
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 
-export type ActionState = { error?: string; success?: boolean };
+export type ActionState = { error?: string; success?: boolean; count?: number };
 
 /**
  * Every WorkSchedule this app creates stays open (effectiveTo = null) —
@@ -171,6 +171,122 @@ export async function duplicatePreviousMonthAction(
 
   revalidatePath(`/employes/${employeeId}/planning`);
   return { success: true };
+}
+
+const rotationSchema = z.object({
+  employeeIds: z.array(z.string().min(1)).min(1, "Sélectionnez au moins un employé."),
+  workDays: z.coerce.number().int().min(1).max(60),
+  restDays: z.coerce.number().int().min(1).max(60),
+  startTime: z.string().min(1),
+  endTime: z.string().min(1),
+  toleranceMinutes: z.coerce.number().min(0).max(120).default(10),
+  cycleStart: z.string().min(1),
+  staggerDays: z.coerce.number().int().min(0).max(30).default(0),
+  rangeEnd: z.string().min(1),
+});
+
+/**
+ * How many days after `cycleStart` a rotation cycle has advanced by `date`,
+ * wrapped into [0, cycleLength) — negative when `date` precedes
+ * `cycleStart` (a cycle that "started" a few days ago still has a
+ * well-defined phase today), hence the double modulo.
+ */
+function isWorkingDayInCycle(date: Date, cycleStart: Date, workDays: number, restDays: number) {
+  const cycleLength = workDays + restDays;
+  const diffDays = Math.round((date.getTime() - cycleStart.getTime()) / 86400000);
+  const phase = ((diffDays % cycleLength) + cycleLength) % cycleLength;
+  return phase < workDays;
+}
+
+/**
+ * Bulk-generates a repeating work/rest pattern (e.g. "2 jours travaillés /
+ * 2 jours repos") across many employees at once — the shortcut for teams
+ * too large to plan one calendar day at a time. `staggerDays` shifts each
+ * subsequent employee's cycle start by that many days, so a team can be
+ * kept desynchronized (never all off at once) without configuring each
+ * person's calendar individually. Only ever writes today or later, same
+ * rule as upsertWorkScheduleDayAction.
+ */
+export async function applyRotationPatternAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const session = await requireSession();
+  const parsed = rotationSchema.safeParse({
+    employeeIds: formData.getAll("employeeIds"),
+    workDays: formData.get("workDays"),
+    restDays: formData.get("restDays"),
+    startTime: formData.get("startTime"),
+    endTime: formData.get("endTime"),
+    toleranceMinutes: formData.get("toleranceMinutes") || 10,
+    cycleStart: formData.get("cycleStart"),
+    staggerDays: formData.get("staggerDays") || 0,
+    rangeEnd: formData.get("rangeEnd"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
+  }
+  const { employeeIds, workDays, restDays, startTime, endTime, toleranceMinutes, cycleStart, staggerDays, rangeEnd } =
+    parsed.data;
+
+  const today = startOfDay(new Date());
+  const rangeStart = today;
+  const rangeEndDate = startOfDay(parseLocalDate(rangeEnd));
+  if (rangeEndDate.getTime() < rangeStart.getTime()) {
+    return { error: "La date de fin doit être après aujourd'hui." };
+  }
+  const baseCycleStart = startOfDay(parseLocalDate(cycleStart));
+
+  let daysWritten = 0;
+  for (let i = 0; i < employeeIds.length; i++) {
+    const employeeId = employeeIds[i];
+    const employee = await assertEmployeeInScope(
+      { orgId: session.orgId, role: session.role, id: session.userId },
+      employeeId
+    );
+    const employeeCycleStart = new Date(baseCycleStart);
+    employeeCycleStart.setDate(employeeCycleStart.getDate() + i * staggerDays);
+
+    const workSchedule = await getOrCreateActiveWorkSchedule(employee.id, session.orgId, session.userId);
+
+    for (
+      let d = new Date(rangeStart);
+      d.getTime() <= rangeEndDate.getTime();
+      d.setDate(d.getDate() + 1)
+    ) {
+      const isWorking = isWorkingDayInCycle(d, employeeCycleStart, workDays, restDays);
+      await prisma.workScheduleDay.upsert({
+        where: { workScheduleId_date: { workScheduleId: workSchedule.id, date: new Date(d) } },
+        create: {
+          workScheduleId: workSchedule.id,
+          date: new Date(d),
+          isWorkingDay: isWorking,
+          startTime: isWorking ? startTime : null,
+          endTime: isWorking ? endTime : null,
+          toleranceMinutes,
+        },
+        update: {
+          isWorkingDay: isWorking,
+          startTime: isWorking ? startTime : null,
+          endTime: isWorking ? endTime : null,
+          toleranceMinutes,
+        },
+      });
+      daysWritten++;
+    }
+  }
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "APPLY_ROTATION_PATTERN",
+    entityType: "WorkSchedule",
+    entityId: employeeIds.join(","),
+    details: `${employeeIds.length} employé(s), ${workDays}j travail/${restDays}j repos, décalage ${staggerDays}j, jusqu'au ${rangeEnd}`,
+  });
+
+  revalidatePath("/planning");
+  return { success: true, count: daysWritten };
 }
 
 export async function getWorkScheduleMonth(employeeId: string, monthStartIso: string) {

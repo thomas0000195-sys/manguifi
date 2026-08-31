@@ -7,6 +7,7 @@ import {
   Users,
   Building2,
   Clock,
+  Repeat,
   FileCheck2,
   BarChart3,
   Settings,
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/equipes", label: "Équipes & sites", icon: Building2 },
   { href: "/horaires", label: "Horaires", icon: Clock },
   { href: "/justificatifs", label: "Justificatifs", icon: FileCheck2 },
+  { href: "/planning", label: "Planning", icon: Repeat },
   { href: "/rapports", label: "Rapports", icon: BarChart3 },
   { href: "/parametres", label: "Paramètres", icon: Settings },
 ];
