@@ -76,6 +76,29 @@ async function getPosition(): Promise<GeolocationPosition> {
   }
 }
 
+function PermissionHelp({ kind }: { kind: "location" | "camera" }) {
+  const label = kind === "location" ? "la localisation" : "la caméra";
+  return (
+    <div className="mt-5 w-full max-w-xs rounded-2xl bg-white/5 p-4 text-left text-xs text-white/70">
+      <p className="font-semibold text-white/90">Comment autoriser {label} :</p>
+      <p className="mt-2 font-medium text-white/80">Sur iPhone (Safari)</p>
+      <ol className="mt-1 list-decimal space-y-1 pl-4">
+        <li>Touchez l&apos;icône &laquo;&nbsp;aA&nbsp;&raquo; dans la barre d&apos;adresse</li>
+        <li>&laquo;&nbsp;Réglages du site web&nbsp;&raquo;</li>
+        <li>Mettez {kind === "location" ? "Localisation" : "Caméra"} sur &laquo;&nbsp;Autoriser&nbsp;&raquo;</li>
+        <li>Rechargez la page et réessayez</li>
+      </ol>
+      <p className="mt-3 font-medium text-white/80">Sur Android (Chrome)</p>
+      <ol className="mt-1 list-decimal space-y-1 pl-4">
+        <li>Touchez le cadenas 🔒 dans la barre d&apos;adresse</li>
+        <li>Touchez &laquo;&nbsp;Autorisations&nbsp;&raquo;</li>
+        <li>Mettez {kind === "location" ? "Position" : "Caméra"} sur &laquo;&nbsp;Autoriser&nbsp;&raquo;</li>
+        <li>Rechargez la page et réessayez</li>
+      </ol>
+    </div>
+  );
+}
+
 function describeGeoError(err: unknown): string {
   const code = (err as GeolocationPositionError)?.code;
   if (code === 1) {
@@ -343,6 +366,7 @@ export default function ScannerClient({
             >
               Réessayer
             </button>
+            <PermissionHelp kind="location" />
           </div>
         )}
 
@@ -364,6 +388,7 @@ export default function ScannerClient({
             >
               Ouvrir la caméra
             </button>
+            {cameraError && <PermissionHelp kind="camera" />}
           </div>
         )}
 
