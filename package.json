@@ -14,6 +14,7 @@
     "db:seed": "node --env-file-if-exists=.env --import tsx prisma/seed.ts",
     "test:concurrency": "node --env-file-if-exists=.env --import tsx scripts/concurrency-test.ts",
     "db:restore": "node --env-file-if-exists=.env --import tsx scripts/restore-backup.ts",
+    "db:list-backups": "node --env-file-if-exists=.env --import tsx scripts/list-backups.ts",
     "cap:sync": "cap sync",
     "cap:android": "cap open android",
     "cap:ios": "cap open ios"
@@ -28,6 +29,7 @@
     "@capacitor/ios": "8.5.0",
     "@prisma/client": "^6.19.3",
     "@sentry/nextjs": "^10.71.0",
+    "@vercel/blob": "^2.8.0",
     "bcryptjs": "^3.0.3",
     "date-fns": "^4.4.0",
     "html5-qrcode": "^2.3.8",

@@ -31,6 +31,9 @@ export default function InstallPrompt() {
   useEffect(() => {
     if (isStandalone()) return;
     if (localStorage.getItem(DISMISS_KEY) === "1") return;
+    // Reads localStorage/matchMedia (external, not React state) once on
+    // mount to decide whether to show the prompt — nothing to derive here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDismissed(false);
 
     if (isIos()) {

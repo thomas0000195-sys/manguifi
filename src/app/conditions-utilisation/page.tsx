@@ -137,11 +137,13 @@ export default function TermsPage() {
             janvier 2008 sur la cybercriminalité, et la loi n° 2008-12 du 25 janvier 2008 portant
             protection des données à caractère personnel. Tout différend relatif à leur validité,
             leur interprétation ou leur exécution qui n&apos;aurait pu être résolu à
-            l&apos;amiable sera soumis à la compétence exclusive des juridictions sénégalaises du
-            lieu du siège social de l&apos;éditeur de Manguifi. Cette clause ne prive pas
-            l&apos;Organisation cliente des protections d&apos;ordre public éventuellement
-            applicables dans son propre pays d&apos;implantation, le cas échéant.
+            l&apos;amiable sera soumis à la compétence exclusive des juridictions sénégalaises de
+            Dakar. Cette clause ne prive pas l&apos;Organisation cliente des protections
+            d&apos;ordre public éventuellement applicables dans son propre pays
+            d&apos;implantation, le cas échéant.
           </p>
+          {/* Dakar posé en attendant l'immatriculation formelle de la société éditrice —
+              à corriger si le siège social retenu à la création diffère. */}
         </section>
       </div>
     </div>

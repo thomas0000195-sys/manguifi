@@ -1,17 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import fs from "node:fs/promises";
-import path from "node:path";
+import { put, list, del } from "@vercel/blob";
 
 const DEFAULT_RETENTION_DAYS = 30;
+const BACKUP_PREFIX = "backups/";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Scheduled backup endpoint. Not wired to any UI — meant to be called by an
  * external scheduler (Vercel Cron, Windows Task Scheduler + curl, a cron
- * job on a VPS) on whatever cadence you want. Writes one JSON file per org
- * per run under ./backups, named with a timestamp so runs never collide.
+ * job on a VPS) on whatever cadence you want. Writes one private Vercel Blob
+ * per org per run, named with a timestamp so runs never collide.
+ *
+ * Storage note: this used to write to a local ./backups directory. That
+ * silently produced nothing on Vercel — its filesystem is ephemeral, so the
+ * file was gone the instant the function finished, while the route still
+ * reported { ok: true }. Vercel Blob (access: "private") persists across
+ * invocations and works the same whether this runs on Vercel or a VPS, so
+ * there's now a single code path instead of a host-dependent one. Requires
+ * a Blob store created and connected to the project (Vercel dashboard →
+ * Storage → Blob), which sets BLOB_READ_WRITE_TOKEN automatically.
  *
  * Protect it: set CRON_SECRET in the environment and call with either
  * `Authorization: Bearer <secret>` or `?secret=<secret>`. Without a secret
@@ -41,8 +50,6 @@ export async function GET(req: NextRequest) {
   }
 
   const orgs = await prisma.organization.findMany();
-  const backupDir = path.join(process.cwd(), "backups");
-  await fs.mkdir(backupDir, { recursive: true });
 
   const results: { orgId: string; file: string }[] = [];
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -85,36 +92,42 @@ export async function GET(req: NextRequest) {
     };
 
     const safeName = org.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-    const file = `${timestamp}_${safeName}_${org.id}.json`;
-    await fs.writeFile(path.join(backupDir, file), JSON.stringify(payload, null, 2), "utf8");
+    const file = `${BACKUP_PREFIX}${timestamp}_${safeName}_${org.id}.json`;
+    await put(file, JSON.stringify(payload, null, 2), {
+      access: "private",
+      addRandomSuffix: false,
+      contentType: "application/json",
+    });
     results.push({ orgId: org.id, file });
   }
 
-  const deleted = await purgeOldBackups(backupDir);
+  const deleted = await purgeOldBackups();
 
   return NextResponse.json({ ok: true, backedUpOrgs: results.length, files: results, deletedOldBackups: deleted });
 }
 
 /**
  * Retention policy: backups older than BACKUP_RETENTION_DAYS (default 30)
- * are deleted on every run. Without this, ./backups grows forever and
+ * are deleted on every run. Without this, the store grows forever and
  * — since each file is a near-complete snapshot of an org's data — keeps
  * personal data around well past any reasonable retention justification.
  */
-async function purgeOldBackups(backupDir: string): Promise<string[]> {
+async function purgeOldBackups(): Promise<string[]> {
   const retentionDays = Number(process.env.BACKUP_RETENTION_DAYS) || DEFAULT_RETENTION_DAYS;
   const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
   const deleted: string[] = [];
 
-  const entries = await fs.readdir(backupDir);
-  for (const entry of entries) {
-    if (!entry.endsWith(".json")) continue;
-    const filePath = path.join(backupDir, entry);
-    const stat = await fs.stat(filePath);
-    if (stat.mtimeMs < cutoff) {
-      await fs.unlink(filePath);
-      deleted.push(entry);
+  let cursor: string | undefined;
+  do {
+    const { blobs, cursor: next, hasMore } = await list({ prefix: BACKUP_PREFIX, cursor, limit: 1000 });
+    for (const blob of blobs) {
+      if (blob.uploadedAt.getTime() < cutoff) {
+        await del(blob.url);
+        deleted.push(blob.pathname);
+      }
     }
-  }
+    cursor = hasMore ? next : undefined;
+  } while (cursor);
+
   return deleted;
 }

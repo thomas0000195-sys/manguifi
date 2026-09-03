@@ -20,14 +20,8 @@ services:
       TWILIO_VERIFY_SERVICE_SID: ${TWILIO_VERIFY_SERVICE_SID}
       SENTRY_DSN: ${SENTRY_DSN}
       NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN}
+      # /api/cron/backup writes to Vercel Blob now, not local disk — works
+      # the same whether this container runs on a VPS or anywhere else, so
+      # no backup volume is needed here anymore.
+      BLOB_READ_WRITE_TOKEN: ${BLOB_READ_WRITE_TOKEN}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
-    volumes:
-      # The database itself now lives in Postgres (Neon), not on this
-      # volume — this only persists the local backup JSON files across
-      # redeploys. See the known limitation about /api/cron/backup not
-      # working as-is on serverless hosts (SESSION_REPORT.md) — on a VPS
-      # running this Dockerfile, local disk is fine.
-      - manguifi-backups:/app/backups
-
-volumes:
-  manguifi-backups:

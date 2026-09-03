@@ -311,6 +311,9 @@ export default function ScannerClient({
   }, [handleDecoded]);
 
   useEffect(() => {
+    // Kicks off the browser's geolocation permission prompt once on mount —
+    // an external-system side effect, not state derived from props/state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     requestGeolocation();
     setPendingCount(getQueuedPunches().length);
     window.addEventListener("online", flushQueue);

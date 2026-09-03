@@ -23,6 +23,9 @@ export default function EmployeeAccountPanel({
   useEffect(() => {
     if (state.success) {
       toast.success("Numéro mis à jour", { id: "phone-updated" });
+      // Closing the edit form is a one-off reaction to the action
+      // succeeding, not a value render could derive from props/state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditing(false);
     }
   }, [state.success]);

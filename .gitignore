@@ -30,20 +30,24 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — .env.example is a template with placeholder values, not a
+# secret, and needs to stay tracked so the repo documents its own required
+# variables (it wasn't, for a long time, which this line fixes).
 .env*
+!.env.example
 
 # vercel
 .vercel
 
-# local sqlite db + backups
+# local sqlite db (pre-Postgres dev artifact, kept in case of local testing)
 /prisma/dev.db
 /prisma/dev.db-journal
+
+# leftover from the local-disk backup implementation (now writes to Vercel
+# Blob instead, see src/app/api/cron/backup/route.ts) — never commit these,
+# they're per-org data dumps.
 /backups/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-.vercel
-.env*

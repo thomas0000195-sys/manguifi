@@ -1,13 +1,44 @@
 name: CI
 
+# The default branch here is `master`, not `main` — this used to say
+# `[main]`, which never matched, so this workflow never actually ran on a
+# push. Found during the pre-launch audit.
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # A throwaway Postgres, just for this job — `prisma migrate deploy`
+    # needs a real database to apply migrations against and verify they're
+    # valid. Copying .env.example used to be pointed at that same idea back
+    # when the project used a local SQLite file; since the move to Postgres
+    # (Neon) that file's DATABASE_URL is an unreachable placeholder, so
+    # `migrate deploy` against it could only ever fail.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: manguifi
+          POSTGRES_PASSWORD: manguifi
+          POSTGRES_DB: manguifi_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://manguifi:manguifi@localhost:5432/manguifi_ci
+      AUTH_SECRET: ci-only-secret-never-used-outside-this-workflow
+      ENCRYPTION_KEY: ci-only-secret-never-used-outside-this-workflow
+      CRON_SECRET: ci-only-secret-never-used-outside-this-workflow
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,11 +48,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-
-      # A fresh local SQLite file, just to satisfy Prisma client generation
-      # and migration checks — no real data, never touches production.
-      - run: cp .env.example .env
-
       - run: npx prisma generate
       - run: npx prisma migrate deploy
       - run: npm run lint

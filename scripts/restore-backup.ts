@@ -12,23 +12,47 @@
  *   to avoid silently clobbering live data — delete it first if you really
  *   mean to replace it.
  *
+ * The backup can come from either a local JSON file, or straight from
+ * Vercel Blob (where /api/cron/backup writes them since it can no longer
+ * rely on local disk on Vercel) — pass either a local path or the blob
+ * pathname (e.g. "backups/2026-01-01T00-00-00-000Z_acme_abc123.json", as
+ * printed by /api/cron/backup or `npx tsx scripts/list-backups.ts").
+ * Fetching from Blob requires BLOB_READ_WRITE_TOKEN in the environment.
+ *
  * Usage:
  *   npx tsx scripts/restore-backup.ts backups/2026-01-01T00-00-00-000Z_acme_abc123.json
  */
 import { PrismaClient } from "@prisma/client";
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { get } from "@vercel/blob";
 
 const prisma = new PrismaClient();
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors the untyped JSON.parse this replaces
+async function loadBackup(source: string): Promise<any> {
+  if (existsSync(source)) {
+    const raw = await readFile(source, "utf8");
+    return JSON.parse(raw);
+  }
+
+  const result = await get(source, { access: "private" });
+  if (!result || result.statusCode !== 200) {
+    console.error(`Aucun fichier local ni blob trouvé pour "${source}".`);
+    process.exit(1);
+  }
+  const raw = await new Response(result.stream).text();
+  return JSON.parse(raw);
+}
 
 async function main() {
   const file = process.argv[2];
   if (!file) {
-    console.error("Usage: npx tsx scripts/restore-backup.ts <chemin-vers-backup.json>");
+    console.error("Usage: npx tsx scripts/restore-backup.ts <chemin-local-ou-pathname-blob>");
     process.exit(1);
   }
 
-  const raw = await readFile(file, "utf8");
-  const data = JSON.parse(raw);
+  const data = await loadBackup(file);
 
   const existing = await prisma.organization.findUnique({ where: { id: data.org.id } });
   if (existing) {
