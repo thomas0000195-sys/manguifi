@@ -49,6 +49,7 @@ async function main() {
   await prisma.justificatif.deleteMany();
   await prisma.attendance.deleteMany();
   await prisma.schedule.deleteMany();
+  await prisma.workSchedule.deleteMany();
   await prisma.responsableTeam.deleteMany();
   await prisma.user.deleteMany();
   await prisma.employee.deleteMany();

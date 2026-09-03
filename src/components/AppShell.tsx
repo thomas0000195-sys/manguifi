@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import InstallPrompt from "./InstallPrompt";
+import TermsBanner from "./TermsBanner";
 
 const navItems = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
@@ -39,12 +40,14 @@ export default function AppShell({
   userEmail,
   role,
   isDemo,
+  termsAccepted,
 }: {
   children: React.ReactNode;
   orgName: string;
   userEmail: string | null;
   role: string;
   isDemo?: boolean;
+  termsAccepted: boolean;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -162,6 +165,8 @@ export default function AppShell({
         <InstallPrompt />
 
         <main className="flex-1 pb-20 lg:pb-0">{children}</main>
+
+        {!termsAccepted && <TermsBanner />}
 
         <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-surface/95 backdrop-blur lg:hidden">
           {mobileItems.map((item) => {

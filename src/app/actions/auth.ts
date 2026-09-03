@@ -9,11 +9,13 @@ import {
   destroySession,
   createPasswordResetToken,
   consumePasswordResetToken,
+  requireSession,
 } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { encryptDataUrl, decryptDataUrl, hashEmail } from "@/lib/crypto";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { CURRENT_TERMS_VERSION } from "@/lib/terms";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
@@ -225,4 +227,22 @@ export async function resetPasswordAction(
   });
 
   redirect("/connexion?reset=1");
+}
+
+export async function acceptTermsAction() {
+  const session = await requireSession();
+
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: { termsAcceptedAt: new Date(), termsVersion: CURRENT_TERMS_VERSION },
+  });
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "ACCEPT_TERMS",
+    entityType: "User",
+    entityId: session.userId,
+    details: CURRENT_TERMS_VERSION,
+  });
 }

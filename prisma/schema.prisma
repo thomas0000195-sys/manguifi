@@ -198,6 +198,11 @@ model User {
   phoneHash    String?  @unique
   phoneVerifiedAt DateTime?
   role         Role
+  // Tracks acceptance of the CGU/politique de confidentialité — termsVersion
+  // is compared against CURRENT_TERMS_VERSION (src/lib/terms.ts) so bumping
+  // that constant re-prompts everyone after a material change to the text.
+  termsAcceptedAt DateTime?
+  termsVersion    String?
   employeeId   String?  @unique
   employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())

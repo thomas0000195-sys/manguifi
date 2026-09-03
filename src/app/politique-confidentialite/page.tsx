@@ -13,12 +13,6 @@ export default function PrivacyPolicyPage() {
       <h1 className="mt-4 text-2xl font-bold text-navy-950">Politique de confidentialité</h1>
       <p className="mt-1 text-sm text-muted">Dernière mise à jour : {new Date().toLocaleDateString("fr-FR")}</p>
 
-      <div className="mt-5 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
-        <strong>Brouillon en attente de validation juridique.</strong> Ce texte décrit fidèlement
-        le fonctionnement technique actuel de l&apos;application, mais n&apos;a pas été relu par
-        un juriste. Ne le considérez pas comme définitif avant validation.
-      </div>
-
       <div className="mt-6 space-y-6 text-sm leading-relaxed text-navy-900">
         <section>
           <h2 className="font-semibold text-navy-950">1. Données collectées</h2>
@@ -117,7 +111,22 @@ export default function PrivacyPolicyPage() {
           <h2 className="font-semibold text-navy-950">8. Contact</h2>
           <p className="mt-1.5 text-muted">
             Pour toute question relative à vos données, contactez
-            l&apos;administrateur de votre organisation sur Manguifi.
+            l&apos;administrateur de votre organisation sur Manguifi. Si votre
+            demande concerne l&apos;administrateur lui-même ou n&apos;a pas
+            trouvé de réponse satisfaisante, vous pouvez contacter
+            l&apos;éditeur de Manguifi à m.gomis@iwadaa.com.
+          </p>
+        </section>
+        <section>
+          <h2 className="font-semibold text-navy-950">9. Autorité de contrôle</h2>
+          <p className="mt-1.5 text-muted">
+            Le traitement de vos données personnelles est soumis à la loi
+            sénégalaise n° 2008-12 du 25 janvier 2008 portant protection des
+            données à caractère personnel. Vous disposez d&apos;un droit de
+            réclamation auprès de la Commission des Données Personnelles
+            (CDP) du Sénégal, autorité chargée de veiller au respect de cette
+            loi, si vous estimez que le traitement de vos données n&apos;est
+            pas conforme.
           </p>
         </section>
       </div>

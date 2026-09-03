@@ -4,6 +4,8 @@ import Link from "next/link";
 import { QrCode, Home, History, FileCheck2, LogOut, UserCircle } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import InstallPrompt from "@/components/InstallPrompt";
+import TermsBanner from "@/components/TermsBanner";
+import { CURRENT_TERMS_VERSION } from "@/lib/terms";
 
 export default async function EspaceLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser(["EMPLOYEE"]);
@@ -38,6 +40,8 @@ export default async function EspaceLayout({ children }: { children: React.React
       )}
 
       <main className="flex-1 pb-20">{children}</main>
+
+      {user.termsVersion !== CURRENT_TERMS_VERSION && <TermsBanner />}
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-3 border-t border-border bg-surface/95 backdrop-blur">
         <Link href="/espace" className="flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-navy-900">
