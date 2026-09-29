@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createSession, requireSession } from "@/lib/auth";
 import { toE164, hashPhone } from "@/lib/phone";
 import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
-import { sendOtp, checkOtp } from "@/lib/twilio";
+import { generateAndSendOtpEmail, verifyOtpCode } from "@/lib/otp";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
 import { redirect } from "next/navigation";
@@ -42,6 +42,12 @@ export async function requestEmployeeOtpAction(
 
   const employee = await prisma.employee.findFirst({
     where: { phoneHash: hashPhone(e164), status: "ACTIF" },
+    select: {
+      id: true,
+      orgId: true,
+      org: { select: { name: true } },
+      user: { select: { email: true } },
+    },
   });
 
   if (!employee) {
@@ -52,7 +58,13 @@ export async function requestEmployeeOtpAction(
     };
   }
 
-  const result = await sendOtp(e164);
+  // Get employee email (from User record if exists, otherwise use placeholder)
+  const employeeEmail = employee.user?.email
+    ? decryptDataUrl(employee.user.email)
+    : `employee-${employee.id}@manguifi.tech`;
+
+  // Send OTP via email (Twilio trial is too limited for SMS)
+  const result = await generateAndSendOtpEmail(employeeEmail, employee.id);
   if (!result.sent) {
     return { error: result.error };
   }
@@ -91,8 +103,8 @@ export async function verifyEmployeeOtpAction(
     };
   }
 
-  const check = await checkOtp(e164, code);
-  if (!check.approved) {
+  const check = await verifyOtpCode(employee.id, code);
+  if (!check.valid) {
     await logAttempt(e164, "OTP_INVALID", employee.id);
     return { error: check.error };
   }

@@ -410,6 +410,18 @@ model EmailOtpCode {
   @@index([emailHash, createdAt])
 }
 
+model OTPCode {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  code        String
+  type        String    @default("EMAIL")
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([employeeId, createdAt])
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   orgId      String
