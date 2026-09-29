@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createSession, requireSession } from "@/lib/auth";
 import { toE164, hashPhone } from "@/lib/phone";
 import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
-import { sendSmsOtp, checkSmsOtp } from "@/lib/vonage";
+import { sendMetaOtp, checkMetaOtp } from "@/lib/meta";
 import { sendOtp, checkOtp } from "@/lib/twilio";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
@@ -58,8 +58,8 @@ export async function requestEmployeeOtpAction(
     };
   }
 
-  // Send OTP via SMS (universal - works for all employees regardless of email)
-  const result = await sendSmsOtp(e164);
+  // Send OTP via WhatsApp/Meta (universal - works for all employees)
+  const result = await sendMetaOtp(e164);
   if (!result.sent) {
     return { error: result.error };
   }
@@ -98,7 +98,7 @@ export async function verifyEmployeeOtpAction(
     };
   }
 
-  const check = await checkSmsOtp(e164, code);
+  const check = await checkMetaOtp(e164, code);
   if (!check.valid) {
     await logAttempt(e164, "OTP_INVALID", employee.id);
     return { error: check.error };
