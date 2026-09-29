@@ -33,7 +33,7 @@ export async function sendSmsOtp(phoneE164: string): Promise<SendSmsOtpResult> {
     });
 
     // Send via Vonage SMS
-    const response = await vonage.sms.sendMessage({
+    const response = await vonage.sms.send({
       to: phoneE164,
       from: "Manguifi",
       text: `Votre code de vérification Manguifi est: ${code}. Valide 10 minutes.`,
