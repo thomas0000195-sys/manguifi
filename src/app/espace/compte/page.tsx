@@ -3,11 +3,15 @@ import { decryptDataUrl } from "@/lib/crypto";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import MyDataPanel from "./MyDataPanel";
+import ProfilePhotoPanel from "./ProfilePhotoPanel";
 
 export default async function MonComptePage() {
   const user = await requireUser(["EMPLOYEE"]);
-  const phone = user.phone ? decryptDataUrl(user.phone) : null;
-  const email = user.email ? decryptDataUrl(user.email) : null;
+  const employee = user.employee;
+  if (!employee) return <div className="p-5">Erreur : profil employé non trouvé.</div>;
+
+  const phone = employee.phone ? decryptDataUrl(employee.phone) : null;
+  const email = employee.email ? decryptDataUrl(employee.email) : null;
 
   return (
     <div className="mx-auto max-w-md px-5 py-6">
@@ -23,6 +27,14 @@ export default async function MonComptePage() {
         Connecté avec {phone ?? email ?? "votre compte"}.
       </p>
 
+      <ProfilePhotoPanel
+        employeeId={employee.id}
+        currentPhotoUrl={employee.photoUrl}
+        firstName={employee.firstName}
+        lastName={employee.lastName}
+      />
+
+      <div className="mt-6" />
       <MyDataPanel />
     </div>
   );

@@ -94,11 +94,9 @@ export default function EmployeesClient({
   }
 
   function handleAdd(formData: FormData) {
-    if (!photoPreview) {
-      toast.error("La photo de profil est obligatoire.");
-      return;
+    if (photoPreview) {
+      formData.set("photoDataUrl", photoPreview);
     }
-    formData.set("photoDataUrl", photoPreview);
     startTransition(async () => {
       const res = await createEmployeeAction({}, formData);
       if (res.error) { toast.error(res.error); return; }
@@ -378,9 +376,9 @@ export default function EmployeesClient({
                   <input type="file" accept="image/*" capture="user" className="hidden" onChange={handlePhotoChange} />
                 </label>
                 <div className="text-xs text-muted">
-                  Photo de profil <span className="text-red-500">*</span>
+                  Photo de profil (facultatif)
                   <br />
-                  Obligatoire — sert à la confirmation visuelle au pointage.
+                  L&apos;employé peut l&apos;ajouter après connexion.
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { computeDailyStatus, minutesToLabel, startOfDay } from "@/lib/attendance-logic";
 import Link from "next/link";
-import { QrCode, Clock, AlertTriangle, FileClock } from "lucide-react";
+import { QrCode, Clock, AlertTriangle, FileClock, User } from "lucide-react";
 import ManualDepartureButton from "./ManualDepartureButton";
 import AutoRefresh from "@/components/AutoRefresh";
 
@@ -53,15 +53,39 @@ export default async function EspacePage() {
   };
   const s = statusLabel[status.status] ?? statusLabel.NON_PLANIFIE;
 
+  const initials = `${employee.firstName[0]}${employee.lastName[0]}`.toUpperCase();
+
   return (
     <div className="mx-auto max-w-md px-5 py-6">
       <AutoRefresh intervalMs={20000} />
-      <p className="text-sm text-muted">
-        Bonjour {employee.firstName} 👋
-      </p>
-      <h1 className="text-xl font-bold text-navy-950">
-        {today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-      </h1>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted">
+            Bonjour {employee.firstName} 👋
+          </p>
+          <h1 className="text-xl font-bold text-navy-950">
+            {today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+          </h1>
+        </div>
+        <Link
+          href="/espace/compte"
+          className="group flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-navy-200 bg-navy-50 text-sm font-semibold text-navy-800 transition hover:border-navy-400 hover:bg-navy-100"
+          title="Mon compte"
+        >
+          {employee.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={employee.photoUrl} alt="Profil" className="h-full w-full object-cover" />
+          ) : (
+            <>
+              <span className="group-hover:hidden">{initials}</span>
+              <span className="hidden group-hover:block">
+                <User className="h-5 w-5" />
+              </span>
+            </>
+          )}
+        </Link>
+      </div>
 
       <div className={`mt-4 rounded-2xl px-4 py-3 text-sm font-medium ${s.color}`}>
         {s.text}
