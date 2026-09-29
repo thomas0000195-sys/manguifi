@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createSession, requireSession } from "@/lib/auth";
 import { toE164, hashPhone } from "@/lib/phone";
 import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
-import { generateAndSendOtpEmail, verifyOtpCode } from "@/lib/otp";
+import { sendSmsOtp, checkSmsOtp } from "@/lib/vonage";
 import { sendOtp, checkOtp } from "@/lib/twilio";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
@@ -46,9 +46,7 @@ export async function requestEmployeeOtpAction(
     select: {
       id: true,
       orgId: true,
-      email: true,
       org: { select: { name: true } },
-      user: { select: { email: true } },
     },
   });
 
@@ -60,22 +58,8 @@ export async function requestEmployeeOtpAction(
     };
   }
 
-  // Get employee email (from User, then Employee, then error)
-  let employeeEmail = employee.user?.email
-    ? decryptDataUrl(employee.user.email)
-    : employee.email
-      ? decryptDataUrl(employee.email)
-      : null;
-
-  if (!employeeEmail) {
-    return {
-      error:
-        "Impossible d'envoyer le code : aucun email configuré. Contactez votre responsable.",
-    };
-  }
-
-  // Send OTP via email (Twilio trial is too limited for SMS)
-  const result = await generateAndSendOtpEmail(employeeEmail, employee.id);
+  // Send OTP via SMS (universal - works for all employees regardless of email)
+  const result = await sendSmsOtp(e164);
   if (!result.sent) {
     return { error: result.error };
   }
@@ -114,7 +98,7 @@ export async function verifyEmployeeOtpAction(
     };
   }
 
-  const check = await verifyOtpCode(employee.id, code);
+  const check = await checkSmsOtp(e164, code);
   if (!check.valid) {
     await logAttempt(e164, "OTP_INVALID", employee.id);
     return { error: check.error };
