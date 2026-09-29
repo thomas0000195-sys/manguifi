@@ -39,7 +39,7 @@ export async function generateEmployeeAccessCodeAction(
   // Fetch employee
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
-    include: { org: true },
+    include: { org: true, team: true },
   });
 
   if (!employee) {
@@ -48,8 +48,34 @@ export async function generateEmployeeAccessCodeAction(
 
   // Check permissions: admin can do anything, responsable only for their scope
   if (session.role === "RESPONSABLE") {
-    // In real implementation, check if responsable manages employee's team/site
-    // For now, allow all responsables
+    // Verify responsable manages this employee's team or site
+    const managedTeams = await prisma.responsableTeam.findMany({
+      where: { userId: session.userId },
+      select: { teamId: true },
+    });
+    const managedSites = await prisma.responsableSite.findMany({
+      where: { userId: session.userId },
+      select: { siteId: true },
+    });
+
+    const managedTeamIds = managedTeams.map((t) => t.teamId);
+    const managedSiteIds = managedSites.map((s) => s.siteId);
+
+    const employeeManagedByResponsable =
+      managedTeamIds.includes(employee.teamId) ||
+      (employee.team && managedSiteIds.includes(employee.team.siteId));
+
+    if (!employeeManagedByResponsable) {
+      await logAudit({
+        orgId: employee.orgId,
+        userId: session.userId,
+        action: "UNAUTHORIZED_ACCESS_ATTEMPT",
+        entityType: "Employee",
+        entityId: employeeId,
+        details: "Responsable tried to regenerate code for employee outside scope",
+      });
+      return { error: "Accès réservé aux administrateurs" };
+    }
   } else if (session.role !== "ADMIN") {
     return { error: "Accès réservé aux administrateurs" };
   }
@@ -104,11 +130,42 @@ export async function revokeEmployeeAccessCodesAction(
 
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
-    include: { org: true },
+    include: { org: true, team: true },
   });
 
   if (!employee) {
     return { error: "Employé non trouvé" };
+  }
+
+  // Verify responsable scope (same as generateEmployeeAccessCodeAction)
+  if (session.role === "RESPONSABLE") {
+    const managedTeams = await prisma.responsableTeam.findMany({
+      where: { userId: session.userId },
+      select: { teamId: true },
+    });
+    const managedSites = await prisma.responsableSite.findMany({
+      where: { userId: session.userId },
+      select: { siteId: true },
+    });
+
+    const managedTeamIds = managedTeams.map((t) => t.teamId);
+    const managedSiteIds = managedSites.map((s) => s.siteId);
+
+    const employeeManagedByResponsable =
+      managedTeamIds.includes(employee.teamId) ||
+      (employee.team && managedSiteIds.includes(employee.team.siteId));
+
+    if (!employeeManagedByResponsable) {
+      await logAudit({
+        orgId: employee.orgId,
+        userId: session.userId,
+        action: "UNAUTHORIZED_REVOKE_ATTEMPT",
+        entityType: "Employee",
+        entityId: employeeId,
+        details: "Responsable tried to revoke codes for employee outside scope",
+      });
+      return { error: "Accès réservé aux administrateurs" };
+    }
   }
 
   try {
