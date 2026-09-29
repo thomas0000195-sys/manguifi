@@ -46,6 +46,7 @@ export async function requestEmployeeOtpAction(
     select: {
       id: true,
       orgId: true,
+      email: true,
       org: { select: { name: true } },
       user: { select: { email: true } },
     },
@@ -59,10 +60,19 @@ export async function requestEmployeeOtpAction(
     };
   }
 
-  // Get employee email (from User record if exists, otherwise use placeholder)
-  const employeeEmail = employee.user?.email
+  // Get employee email (from User, then Employee, then error)
+  let employeeEmail = employee.user?.email
     ? decryptDataUrl(employee.user.email)
-    : `employee-${employee.id}@manguifi.tech`;
+    : employee.email
+      ? decryptDataUrl(employee.email)
+      : null;
+
+  if (!employeeEmail) {
+    return {
+      error:
+        "Impossible d'envoyer le code : aucun email configuré. Contactez votre responsable.",
+    };
+  }
 
   // Send OTP via email (Twilio trial is too limited for SMS)
   const result = await generateAndSendOtpEmail(employeeEmail, employee.id);
