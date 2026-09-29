@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
-import { encryptDataUrl, hashEmail } from "@/lib/crypto";
+import { encryptDataUrl, decryptDataUrl, hashEmail } from "@/lib/crypto";
 import { sendEmailOtp, checkEmailOtp } from "@/lib/email-otp";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { redirect } from "next/navigation";
@@ -72,7 +72,6 @@ export async function verifyEmployeeEmailOtpAction(
   const check = await checkEmailOtp(email, code);
   if (!check.approved) return { error: check.error };
 
-  const now = new Date();
   let user = employee.user;
   if (!user) {
     user = await prisma.user.create({
@@ -97,7 +96,7 @@ export async function verifyEmployeeEmailOtpAction(
     userId: user.id,
     orgId: user.orgId,
     role: user.role,
-    email: user.email,
+    email: user.email ? decryptDataUrl(user.email) : email,
     employeeId: user.employeeId,
   });
 

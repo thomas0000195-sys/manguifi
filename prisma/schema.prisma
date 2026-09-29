@@ -180,6 +180,7 @@ model Employee {
   justificatifs Justificatif[]
   overtimes     OvertimeRecord[]
   workSchedules WorkSchedule[]
+  otpCodes      OTPCode[]
 
   @@unique([orgId, matricule])
 }

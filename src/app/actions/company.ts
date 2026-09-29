@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { encryptDataUrl, decryptDataUrl, hashEmail } from "@/lib/crypto";
+import { encryptDataUrl, hashEmail } from "@/lib/crypto";
 import { hashPhone } from "@/lib/phone";
 import { generateMatricule } from "@/lib/matricule";
 import { revalidatePath } from "next/cache";

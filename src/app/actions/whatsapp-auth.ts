@@ -5,6 +5,7 @@ import { createSession, requireSession } from "@/lib/auth";
 import { toE164, hashPhone } from "@/lib/phone";
 import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
 import { generateAndSendOtpEmail, verifyOtpCode } from "@/lib/otp";
+import { sendOtp, checkOtp } from "@/lib/twilio";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
 import { redirect } from "next/navigation";
@@ -167,7 +168,6 @@ export async function requestLinkPhoneOtpAction(
   const e164 = toE164(raw);
   if (!e164) return { error: "Numéro de téléphone invalide." };
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
   if (!checkRateLimit(`otp-link:${session.userId}`, 5, 15 * 60 * 1000)) {
     return { error: "Trop de demandes. Réessayez dans quelques minutes." };
   }
