@@ -1,6 +1,7 @@
 import axios from "axios";
 import crypto from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { hashPhone } from "@/lib/phone";
 
 const PHONE_NUMBER_ID = process.env.META_PHONE_NUMBER_ID;
 const ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
@@ -8,7 +9,7 @@ const ACCESS_TOKEN = process.env.META_ACCESS_TOKEN;
 export type SendMetaOtpResult = { sent: true } | { sent: false; error: string };
 
 /**
- * Send OTP via WhatsApp or SMS using Meta API
+ * Send OTP via WhatsApp using Meta API
  */
 export async function sendMetaOtp(phoneE164: string): Promise<SendMetaOtpResult> {
   if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
@@ -18,18 +19,31 @@ export async function sendMetaOtp(phoneE164: string): Promise<SendMetaOtpResult>
     };
   }
 
-  const code = crypto.randomInt(100000, 999999).toString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
   try {
+    // Find employee by phone number
+    const employee = await prisma.employee.findFirst({
+      where: { phoneHash: hashPhone(phoneE164), status: "ACTIF" },
+      select: { id: true },
+    });
+
+    if (!employee) {
+      return {
+        sent: false,
+        error: "Numéro non trouvé.",
+      };
+    }
+
+    const code = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
     // Store the OTP in database
     await prisma.oTPCode.deleteMany({
-      where: { employeeId: phoneE164, type: "WHATSAPP" },
+      where: { employeeId: employee.id, type: "WHATSAPP" },
     });
 
     await prisma.oTPCode.create({
       data: {
-        employeeId: phoneE164,
+        employeeId: employee.id,
         code,
         type: "WHATSAPP",
         expiresAt,
@@ -84,9 +98,19 @@ export async function checkMetaOtp(
   code: string
 ): Promise<CheckMetaOtpResult> {
   try {
+    // Find employee by phone number
+    const employee = await prisma.employee.findFirst({
+      where: { phoneHash: hashPhone(phoneE164), status: "ACTIF" },
+      select: { id: true },
+    });
+
+    if (!employee) {
+      return { valid: false, error: "Numéro non trouvé." };
+    }
+
     const otpRecord = await prisma.oTPCode.findFirst({
       where: {
-        employeeId: phoneE164,
+        employeeId: employee.id,
         code,
         type: "WHATSAPP",
         expiresAt: { gt: new Date() },
