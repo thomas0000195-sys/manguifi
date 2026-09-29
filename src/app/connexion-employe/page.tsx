@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { QrCode } from "lucide-react";
-import WhatsAppLoginForm from "./WhatsAppLoginForm";
+import AccessCodeLoginForm from "./AccessCodeLoginForm";
 
 export default function ConnexionEmployePage() {
   return (
@@ -23,10 +23,10 @@ export default function ConnexionEmployePage() {
           </Link>
           <h1 className="text-xl font-bold text-navy-950">Espace employé</h1>
           <p className="mt-1 text-sm text-muted">
-            Connectez-vous avec votre numéro WhatsApp — aucun mot de passe requis.
+            Connectez-vous avec votre numéro et votre code d&apos;accès.
           </p>
           <div className="mt-6">
-            <WhatsAppLoginForm />
+            <AccessCodeLoginForm />
           </div>
         </div>
       </div>

@@ -181,6 +181,8 @@ model Employee {
   overtimes     OvertimeRecord[]
   workSchedules WorkSchedule[]
   otpCodes      OTPCode[]
+  accessCodes   EmployeeAccessCode[] @relation("employeeAccessCodes")
+  session       EmployeeSession?     @relation("employeeSession")
 
   @@unique([orgId, matricule])
 }
@@ -433,4 +435,38 @@ model AuditLog {
   entityId   String
   details    String?
   createdAt  DateTime @default(now())
+}
+
+model EmployeeAccessCode {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation("employeeAccessCodes", fields: [employeeId], references: [id], onDelete: Cascade)
+  codeHash    String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdBy   String    @default("system")
+  createdAt   DateTime  @default(now())
+
+  @@index([employeeId, expiresAt])
+}
+
+model EmployeeSession {
+  id          String    @id @default(cuid())
+  employeeId  String    @unique
+  employee    Employee  @relation("employeeSession", fields: [employeeId], references: [id], onDelete: Cascade)
+  token       String    @unique
+  lastActivityAt DateTime @default(now())
+  createdAt   DateTime  @default(now())
+}
+
+model EmployeeLoginAttempt {
+  id          String    @id @default(cuid())
+  phoneHash   String
+  outcome     String
+  employeeId  String?
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([phoneHash, createdAt])
+  @@index([employeeId, createdAt])
 }
