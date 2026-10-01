@@ -10,27 +10,20 @@ function getClient() {
 export type SendOtpResult = { sent: true } | { sent: false; error: string };
 
 /**
- * Sends an OTP over WhatsApp with automatic SMS fallback (Twilio delivers
- * over SMS if the WhatsApp message can't be delivered — e.g. the number
- * isn't on WhatsApp). Requires a configured Verify Service; on Twilio
- * trial accounts, only phone numbers verified in the Twilio console can
- * receive anything at all.
+ * Sends an OTP over SMS via Twilio Verify. Requires a configured Verify Service;
+ * on Twilio trial accounts, only phone numbers verified in the Twilio console can receive messages.
  */
 export async function sendOtp(phoneE164: string): Promise<SendOtpResult> {
   const client = getClient();
   const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
   if (!client || !serviceSid) {
-    return { sent: false, error: "L'envoi de code par WhatsApp/SMS n'est pas configuré." };
+    return { sent: false, error: "L'envoi de code par SMS n'est pas configuré." };
   }
 
   try {
     await client.verify.v2.services(serviceSid).verifications.create({
       to: phoneE164,
-      channel: "whatsapp",
-      channelConfiguration: {
-        whatsapp: { enabled: true },
-        sms: { enabled: true },
-      },
+      channel: "sms",
     });
     return { sent: true };
   } catch (err) {
