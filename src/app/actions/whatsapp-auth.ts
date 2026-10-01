@@ -5,6 +5,7 @@ import { createSession, requireSession } from "@/lib/auth";
 import { toE164, hashPhone } from "@/lib/phone";
 import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
 import { generateAndSendOtpEmail, verifyOtpCode } from "@/lib/otp";
+import { sendOtp, checkOtp } from "@/lib/twilio";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
 import { redirect } from "next/navigation";
