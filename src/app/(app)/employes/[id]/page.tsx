@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Mail, CheckCircle2, Clock, Calendar } from "lucide-react";
 import ProfileCard from "./ProfileCard";
 import EmployeeAccountPanel from "./EmployeeAccountPanel";
+import AccessCodePanel from "./AccessCodePanel";
 import EmployeePhotoUpload from "./EmployeePhotoUpload";
 import ExportEmployeeDataButton from "./ExportEmployeeDataButton";
 
@@ -87,11 +88,14 @@ export default async function EmployeeProfilePage({
       <ProfileCard employee={employee} photoDataUrl={photoDataUrl} />
 
       {user.role === "ADMIN" && employee.phone && (
-        <EmployeeAccountPanel
-          employeeId={employee.id}
-          phone={employee.phone}
-          invitationStatus={employee.invitationStatus}
-        />
+        <>
+          <EmployeeAccountPanel
+            employeeId={employee.id}
+            phone={employee.phone}
+            invitationStatus={employee.invitationStatus}
+          />
+          <AccessCodePanel employeeId={employee.id} />
+        </>
       )}
 
       {user.role === "ADMIN" && !employee.phone && employee.email && (
