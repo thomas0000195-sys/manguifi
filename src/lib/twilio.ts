@@ -1,6 +1,9 @@
 import twilio from "twilio";
 
+const SMS_OTP_ENABLED = process.env.SMS_OTP_ENABLED === "true";
+
 function getClient() {
+  if (!SMS_OTP_ENABLED) return null;
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   if (!sid || !token) return null;
