@@ -172,7 +172,7 @@ test("le chiffrement n'utilise pas l'ancienne clé de repli", () => {
   // renvoie alors le texte chiffré tel quel.
   delete process.env.ENCRYPTION_KEY;
   process.env.AUTH_SECRET = OLD_CRYPTO_FALLBACK;
-  assert.notEqual(cryptoLib.decryptDataUrl(encrypted), plain);
+  assert.throws(() => cryptoLib.decryptDataUrl(encrypted), /illisible/);
 });
 
 test("aller-retour chiffrement / déchiffrement", () => {

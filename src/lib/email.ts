@@ -12,6 +12,26 @@ function getResendClient() {
   return new Resend(key);
 }
 
+/** Échappe une valeur insérée dans le HTML d'un email (texte et attributs). */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Une seule ligne, sans caractères de contrôle : pour les sujets et en-têtes. */
+function oneLine(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+/** Contrôle volontairement simple : refuse tout ce qui peut casser un en-tête ou un attribut HTML. */
+export function isPlausibleEmail(value: string): boolean {
+  return value.length <= 254 && /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(value);
+}
+
 /**
  * Sends the password-reset email via Resend. Returns false (without
  * throwing) if RESEND_API_KEY isn't configured or the send fails — callers
@@ -19,6 +39,7 @@ function getResendClient() {
  * fall back to showing the link on-screen; in production we must not).
  */
 export async function sendPasswordResetEmail(to: string, rawToken: string) {
+  if (!isPlausibleEmail(to)) return false;
   const resend = getResendClient();
   if (!resend) return false;
 
@@ -76,13 +97,14 @@ export async function sendPasswordResetEmail(to: string, rawToken: string) {
  * is verified — this must never run in real production.
  */
 export async function sendEmployeeOtpEmail(to: string, code: string) {
+  if (!isPlausibleEmail(to)) return false;
   const resend = getResendClient();
   if (!resend) return false;
 
   const overrideTo = process.env.EMAIL_OTP_TEST_OVERRIDE_TO;
   const actualTo = overrideTo || to;
   const subject = overrideTo
-    ? `${code} — code pour ${to} (relais pilote)`
+    ? `${code} — code pour ${oneLine(to)} (relais pilote)`
     : `${code} — votre code de connexion Manguifi`;
 
   try {
@@ -100,7 +122,7 @@ export async function sendEmployeeOtpEmail(to: string, code: string) {
             ${
               overrideTo
                 ? `<p style="font-size: 13px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; color: #9a3412; margin: 0 0 16px;">
-                    Relais pilote — ce code est destiné à <strong>${to}</strong>. Communiquez-le à cette personne.
+                    Relais pilote — ce code est destiné à <strong>${escapeHtml(to)}</strong>. Communiquez-le à cette personne.
                   </p>`
                 : ""
             }
@@ -108,7 +130,7 @@ export async function sendEmployeeOtpEmail(to: string, code: string) {
               Entrez ce code dans l'application pour vous connecter à votre espace employé. Il expire dans 10 minutes.
             </p>
             <div style="background: #f1f5f9; border-radius: 10px; padding: 16px; text-align: center; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0b1a36;">
-              ${code}
+              ${escapeHtml(code)}
             </div>
             <p style="font-size: 12.5px; color: #64748b; margin-top: 24px;">
               Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.
@@ -134,6 +156,7 @@ export async function sendEmployeeOtpEmail(to: string, code: string) {
  * first-time user where to go and what to expect (a code, not a password).
  */
 export async function sendEmployeeInvitationEmail(to: string, orgName: string, firstName: string) {
+  if (!isPlausibleEmail(to)) return false;
   const resend = getResendClient();
   if (!resend) return false;
 
@@ -141,8 +164,8 @@ export async function sendEmployeeInvitationEmail(to: string, orgName: string, f
   const overrideTo = process.env.EMAIL_OTP_TEST_OVERRIDE_TO;
   const actualTo = overrideTo || to;
   const subject = overrideTo
-    ? `Invitation pour ${to} (relais pilote) — ${orgName}`
-    : `Bienvenue sur Manguifi — ${orgName}`;
+    ? `Invitation pour ${oneLine(to)} (relais pilote) — ${oneLine(orgName)}`
+    : `Bienvenue sur Manguifi — ${oneLine(orgName)}`;
 
   try {
     const { error } = await resend.emails.send({
@@ -155,16 +178,16 @@ export async function sendEmployeeInvitationEmail(to: string, orgName: string, f
             <span style="color: #fff; font-weight: 700; font-size: 17px;">Manguifi</span>
           </div>
           <div style="border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 14px 14px; padding: 28px 24px;">
-            <h1 style="font-size: 18px; margin: 0 0 12px;">Bonjour ${firstName},</h1>
+            <h1 style="font-size: 18px; margin: 0 0 12px;">Bonjour ${escapeHtml(firstName)},</h1>
             ${
               overrideTo
                 ? `<p style="font-size: 13px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 14px; color: #9a3412; margin: 0 0 16px;">
-                    Relais pilote — cette invitation est destinée à <strong>${to}</strong>.
+                    Relais pilote — cette invitation est destinée à <strong>${escapeHtml(to)}</strong>.
                   </p>`
                 : ""
             }
             <p style="font-size: 14px; line-height: 1.6; color: #334155; margin: 0 0 16px;">
-              <strong>${orgName}</strong> vous a ajouté sur Manguifi, l'application utilisée pour votre pointage.
+              <strong>${escapeHtml(orgName)}</strong> vous a ajouté sur Manguifi, l'application utilisée pour votre pointage.
               Vous n'avez pas besoin de créer de mot de passe : à chaque connexion, un code à usage unique vous sera envoyé par email.
             </p>
             <a href="${loginUrl}" style="display: inline-block; background: #0b1a36; color: #fff; text-decoration: none; font-weight: 600; font-size: 14px; padding: 12px 22px; border-radius: 10px;">

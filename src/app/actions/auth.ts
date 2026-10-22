@@ -17,7 +17,6 @@ import { sendPasswordResetEmail } from "@/lib/email";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { CURRENT_TERMS_VERSION } from "@/lib/terms";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 
 const signupSchema = z.object({
   orgName: z.string().min(2, "Le nom de l'entreprise est requis"),
@@ -52,7 +51,7 @@ export async function signupAction(
   const emailHash = hashEmail(email);
   const existing = await prisma.user.findUnique({ where: { emailHash } });
   if (existing) {
-    return { error: "Un compte existe déjà avec cet email." };
+    return { error: "Impossible de créer ce compte. Si vous avez déjà un compte, connectez-vous ou réinitialisez votre mot de passe." };
   }
 
   const org = await prisma.organization.create({

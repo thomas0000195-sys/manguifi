@@ -1,11 +1,11 @@
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { toE164, hashPhone } from "../src/lib/phone";
 import { hashEmail } from "../src/lib/crypto";
 import { getEncryptionSecret } from "../src/lib/secrets";
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 const PREFIX = "enc:v1:";
 function getKey() {

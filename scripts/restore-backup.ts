@@ -22,12 +22,12 @@
  * Usage:
  *   npx tsx scripts/restore-backup.ts backups/2026-01-01T00-00-00-000Z_acme_abc123.json
  */
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma";
 import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { get } from "@vercel/blob";
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mirrors the untyped JSON.parse this replaces
 async function loadBackup(source: string): Promise<any> {

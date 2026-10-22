@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createSession, requireSession } from "@/lib/auth";
 import { toE164, hashPhone } from "@/lib/phone";
 import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
-import { generateAndSendOtpEmail, verifyOtpCode } from "@/lib/otp";
+import { sendEmailOtp, checkEmailOtp } from "@/lib/email-otp";
 import { sendOtp, checkOtp } from "@/lib/twilio";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
@@ -39,34 +39,21 @@ export async function requestEmployeeOtpAction(
     return { error: "Trop de demandes. Réessayez dans quelques minutes." };
   }
 
+  // Le code part sur l'email professionnel de l'employé, via le même mécanisme
+  // haché et limité que la connexion par email (src/lib/email-otp.ts). Un numéro
+  // inconnu, ou un employé sans email, reçoit la même réponse sans envoi.
   const employee = await prisma.employee.findFirst({
     where: { phoneHash: hashPhone(e164), status: "ACTIF" },
-    select: {
-      id: true,
-      orgId: true,
-      org: { select: { name: true } },
-      user: { select: { email: true } },
-    },
+    select: { id: true, email: true },
   });
 
-  if (!employee) {
-    await logAttempt(e164, "UNKNOWN_NUMBER");
-    return {
-      error:
-        "Ce numéro n'est associé à aucune entreprise. Contactez votre responsable pour être ajouté.",
-    };
+  if (!employee || !employee.email) {
+    await logAttempt(e164, "UNKNOWN_NUMBER", employee?.id);
+    return { submitted: true, phone: e164 };
   }
 
-  // Get employee email (from User record if exists, otherwise use placeholder)
-  const employeeEmail = employee.user?.email
-    ? decryptDataUrl(employee.user.email)
-    : `employee-${employee.id}@manguifi.tech`;
-
-  // Send OTP via email (Twilio trial is too limited for SMS)
-  const result = await generateAndSendOtpEmail(employeeEmail, employee.id);
-  if (!result.sent) {
-    return { error: result.error };
-  }
+  const result = await sendEmailOtp(decryptDataUrl(employee.email));
+  if (!result.sent) return { error: result.error };
 
   return { submitted: true, phone: e164 };
 }
@@ -93,16 +80,13 @@ export async function verifyEmployeeOtpAction(
     where: { phoneHash: hashPhone(e164), status: "ACTIF" },
     include: { user: true },
   });
-  if (!employee) {
-    await logAttempt(e164, "UNKNOWN_NUMBER");
-    return {
-      error:
-        "Ce numéro n'est associé à aucune entreprise. Contactez votre responsable pour être ajouté.",
-    };
+  if (!employee || !employee.email) {
+    await logAttempt(e164, "UNKNOWN_NUMBER", employee?.id);
+    return { error: "Code invalide ou expiré." };
   }
 
-  const check = await verifyOtpCode(employee.id, code);
-  if (!check.valid) {
+  const check = await checkEmailOtp(decryptDataUrl(employee.email), code);
+  if (!check.approved) {
     await logAttempt(e164, "OTP_INVALID", employee.id);
     return { error: check.error };
   }
@@ -171,7 +155,7 @@ export async function requestLinkPhoneOtpAction(
 
   const existing = await prisma.user.findUnique({ where: { phoneHash: hashPhone(e164) } });
   if (existing && existing.id !== session.userId) {
-    return { error: "Ce numéro est déjà utilisé par un autre compte." };
+    return { error: "Ce numéro ne peut pas être lié à ce compte." };
   }
 
   const result = await sendOtp(e164);
@@ -228,7 +212,8 @@ export async function requestLoginOtpAction(
     where: { phoneHash: hashPhone(e164), phoneVerifiedAt: { not: null }, role: { in: ["ADMIN", "RESPONSABLE"] } },
   });
   if (!user) {
-    return { error: "Aucun compte administrateur/responsable n'est associé à ce numéro." };
+    // Même réponse qu'un envoi réussi : on ne révèle pas quels numéros ont un compte.
+    return { submitted: true, phone: e164 };
   }
 
   const result = await sendOtp(e164);
@@ -251,7 +236,7 @@ export async function verifyLoginOtpAction(
   const user = await prisma.user.findFirst({
     where: { phoneHash: hashPhone(e164), phoneVerifiedAt: { not: null }, role: { in: ["ADMIN", "RESPONSABLE"] } },
   });
-  if (!user) return { error: "Aucun compte n'est associé à ce numéro." };
+  if (!user) return { error: "Code invalide ou expiré." };
 
   const check = await checkOtp(e164, code);
   if (!check.approved) return { error: check.error };

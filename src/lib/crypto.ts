@@ -40,7 +40,9 @@ export function decryptDataUrl(stored: string): string {
     const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return plain.toString("utf8");
   } catch {
-    return stored;
+    // Donnée illisible (ENCRYPTION_KEY différente ou donnée altérée) : on échoue
+    // explicitement au lieu de renvoyer le texte chiffré comme s'il était valide.
+    throw new Error("Donnée chiffrée illisible : vérifier ENCRYPTION_KEY et l'intégrité de la base.");
   }
 }
 

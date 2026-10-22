@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { encryptDataUrl, decryptDataUrl, hashEmail } from "@/lib/crypto";
+import { encryptDataUrl, hashEmail } from "@/lib/crypto";
 import { hashPhone } from "@/lib/phone";
 import { generateMatricule } from "@/lib/matricule";
 import { revalidatePath } from "next/cache";
@@ -552,7 +552,7 @@ export async function createResponsableAction(
 
   if (existing) {
     if (existing.orgId !== session.orgId || existing.role !== "RESPONSABLE") {
-      return { error: "Un compte existe déjà avec cet email et n'est pas un responsable de cette entreprise." };
+      return { error: "Cette adresse ne peut pas être utilisée pour ce responsable. Vérifiez-la ou contactez le support." };
     }
     const alreadyLinked = await prisma.responsableTeam.findUnique({
       where: { userId_teamId: { userId: existing.id, teamId } },
@@ -639,7 +639,7 @@ export async function assignResponsableToSiteAction(
 
   if (existing) {
     if (existing.orgId !== session.orgId || existing.role !== "RESPONSABLE") {
-      return { error: "Un compte existe déjà avec cet email et n'est pas un responsable de cette entreprise." };
+      return { error: "Cette adresse ne peut pas être utilisée pour ce responsable. Vérifiez-la ou contactez le support." };
     }
     const alreadyLinked = await prisma.responsableSite.findUnique({
       where: { userId_siteId: { userId: existing.id, siteId } },
