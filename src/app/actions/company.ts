@@ -187,7 +187,7 @@ const employeeSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   teamId: z.string().min(1, "Équipe requise"),
   position: z.string().optional().or(z.literal("")),
-  photoDataUrl: z.string().min(10, "La photo de profil est obligatoire."),
+  photoDataUrl: z.string().optional().or(z.literal("")),
   dateOfBirth: z.string().optional().or(z.literal("")),
   idNumber: z.string().optional().or(z.literal("")),
 });
@@ -217,7 +217,7 @@ export async function createEmployeeAction(
   const { firstName, lastName, phone: rawPhone, email, teamId, position, photoDataUrl, dateOfBirth, idNumber } =
     parsed.data;
 
-  if (!photoDataUrl.startsWith("data:image/")) {
+  if (photoDataUrl && !photoDataUrl.startsWith("data:image/")) {
     return { error: "Format d'image invalide pour la photo de profil." };
   }
 
@@ -270,7 +270,7 @@ export async function createEmployeeAction(
       email: employeeEmail ? encryptDataUrl(employeeEmail) : null,
       emailHash,
       position: position || null,
-      photoUrl: encryptDataUrl(photoDataUrl),
+      photoUrl: photoDataUrl ? encryptDataUrl(photoDataUrl) : null,
       matricule,
       dateOfBirth: dateOfBirth ? encryptDataUrl(new Date(dateOfBirth).toISOString()) : null,
       idNumber: idNumber ? encryptDataUrl(idNumber) : null,
@@ -786,5 +786,39 @@ export async function updateEmployeePhotoAction(
 
   revalidatePath("/employes");
   revalidatePath(`/employes/${employeeId}`);
+  return { success: true };
+}
+
+/**
+ * Un employé ajoute ou remplace sa propre photo de profil depuis /espace/compte.
+ * Même règles de taille et de format que la version administrateur.
+ */
+export async function updateMyPhotoAction(photoDataUrl: string): Promise<ActionState> {
+  const session = await requireSession();
+  if (session.role !== "EMPLOYEE" || !session.employeeId) {
+    return { error: "Réservé aux comptes employé." };
+  }
+
+  if (!photoDataUrl.startsWith("data:image/")) {
+    return { error: "Format d'image invalide." };
+  }
+  if (photoDataUrl.length > MAX_PHOTO_BYTES * 1.4) {
+    return { error: "La photo dépasse 3 Mo. Choisissez une image plus légère." };
+  }
+
+  await prisma.employee.update({
+    where: { id: session.employeeId },
+    data: { photoUrl: encryptDataUrl(photoDataUrl) },
+  });
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "UPDATE_MY_PHOTO",
+    entityType: "Employee",
+    entityId: session.employeeId,
+  });
+
+  revalidatePath("/espace/compte");
   return { success: true };
 }

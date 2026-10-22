@@ -3,6 +3,7 @@ import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import MyDataPanel from "./MyDataPanel";
+import MyPhotoUpload from "./MyPhotoUpload";
 
 export default async function MonComptePage() {
   const user = await requireUser(["EMPLOYEE"]);
@@ -22,6 +23,14 @@ export default async function MonComptePage() {
       <p className="text-sm text-muted">
         Connecté avec {phone ?? email ?? "votre compte"}.
       </p>
+
+      <div className="mt-6">
+        <h2 className="mb-3 text-sm font-semibold text-navy-950">Ma photo de profil</h2>
+        <MyPhotoUpload
+          currentPhotoUrl={user.employee?.photoUrl ? decryptDataUrlForDisplay(user.employee.photoUrl) : null}
+          initials={`${user.employee?.firstName?.[0] ?? ""}${user.employee?.lastName?.[0] ?? ""}`.toUpperCase() || "?"}
+        />
+      </div>
 
       <MyDataPanel />
     </div>

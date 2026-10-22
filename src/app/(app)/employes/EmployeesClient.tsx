@@ -94,11 +94,7 @@ export default function EmployeesClient({
   }
 
   function handleAdd(formData: FormData) {
-    if (!photoPreview) {
-      toast.error("La photo de profil est obligatoire.");
-      return;
-    }
-    formData.set("photoDataUrl", photoPreview);
+    if (photoPreview) formData.set("photoDataUrl", photoPreview);
     startTransition(async () => {
       const res = await createEmployeeAction({}, formData);
       if (res.error) { toast.error(res.error); return; }
