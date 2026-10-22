@@ -9,7 +9,6 @@ import { sendOtp, checkOtp } from "@/lib/twilio";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logAudit } from "@/lib/audit";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 export type OtpRequestState = { error?: string; submitted?: boolean; phone?: string };
@@ -36,8 +35,7 @@ export async function requestEmployeeOtpAction(
   const e164 = toE164(raw);
   if (!e164) return { error: "Numéro de téléphone invalide." };
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
-  if (!checkRateLimit(`otp-request:${ip}:${e164}`, 5, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit("otp-request", e164, { limit: 5, windowMs: 15 * 60 * 1000, ipLimit: 30 }))) {
     return { error: "Trop de demandes. Réessayez dans quelques minutes." };
   }
 
@@ -87,8 +85,7 @@ export async function verifyEmployeeOtpAction(
   const code = String(formData.get("code") ?? "").trim();
   if (!e164 || !code) return { error: "Code requis." };
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
-  if (!checkRateLimit(`otp-verify:${ip}:${e164}`, 8, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit("otp-verify-employee", e164, { limit: 8, windowMs: 15 * 60 * 1000, ipLimit: 60 }))) {
     return { error: "Trop de tentatives. Réessayez dans quelques minutes." };
   }
 
@@ -168,8 +165,7 @@ export async function requestLinkPhoneOtpAction(
   const e164 = toE164(raw);
   if (!e164) return { error: "Numéro de téléphone invalide." };
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
-  if (!checkRateLimit(`otp-link:${session.userId}`, 5, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit("otp-link", session.userId, { limit: 5, windowMs: 15 * 60 * 1000 }))) {
     return { error: "Trop de demandes. Réessayez dans quelques minutes." };
   }
 
@@ -192,7 +188,7 @@ export async function verifyLinkPhoneOtpAction(
   const code = String(formData.get("code") ?? "").trim();
   if (!e164 || !code) return { error: "Code requis." };
 
-  if (!checkRateLimit(`otp-verify:${session.userId}`, 8, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit("otp-verify-link", session.userId, { limit: 8, windowMs: 15 * 60 * 1000 }))) {
     return { error: "Trop de tentatives. Réessayez dans quelques minutes." };
   }
 
@@ -224,8 +220,7 @@ export async function requestLoginOtpAction(
   const e164 = toE164(raw);
   if (!e164) return { error: "Numéro de téléphone invalide." };
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
-  if (!checkRateLimit(`otp-login:${ip}:${e164}`, 5, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit("otp-login", e164, { limit: 5, windowMs: 15 * 60 * 1000, ipLimit: 30 }))) {
     return { error: "Trop de demandes. Réessayez dans quelques minutes." };
   }
 
@@ -249,8 +244,7 @@ export async function verifyLoginOtpAction(
   const code = String(formData.get("code") ?? "").trim();
   if (!e164 || !code) return { error: "Code requis." };
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
-  if (!checkRateLimit(`otp-verify:${ip}:${e164}`, 8, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit("otp-verify-login", e164, { limit: 8, windowMs: 15 * 60 * 1000, ipLimit: 60 }))) {
     return { error: "Trop de tentatives. Réessayez dans quelques minutes." };
   }
 

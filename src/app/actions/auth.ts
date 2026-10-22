@@ -43,8 +43,7 @@ export async function signupAction(
     return { error: parsed.error.issues[0]?.message ?? "Formulaire invalide" };
   }
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
-  if (!checkRateLimit(`signup:${ip}`, 5, 60 * 60 * 1000)) {
+  if (!(await checkRateLimit("signup", parsed.data.email, { limit: 3, windowMs: 60 * 60 * 1000, ipLimit: 10 }))) {
     return { error: "Trop de créations de compte depuis cette adresse. Réessayez plus tard." };
   }
 
@@ -102,8 +101,7 @@ export async function loginAction(
 
   const { email, password } = parsed.data;
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
-  if (!checkRateLimit(`login:${ip}:${email}`, 8, 10 * 60 * 1000)) {
+  if (!(await checkRateLimit("login", email.trim().toLowerCase(), { limit: 8, windowMs: 10 * 60 * 1000, ipLimit: 50 }))) {
     return { error: "Trop de tentatives. Réessayez dans quelques minutes." };
   }
 
@@ -147,8 +145,7 @@ export async function requestPasswordResetAction(
     return { error: parsed.error.issues[0]?.message ?? "Email invalide" };
   }
 
-  const ip = (await headers()).get("x-forwarded-for") ?? "local";
-  if (!checkRateLimit(`reset:${ip}`, 5, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit("password-reset", parsed.data.email.trim().toLowerCase(), { limit: 5, windowMs: 15 * 60 * 1000, ipLimit: 30 }))) {
     return { error: "Trop de demandes. Réessayez dans quelques minutes." };
   }
 

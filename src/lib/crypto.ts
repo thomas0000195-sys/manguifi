@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
+import { getEncryptionSecret } from "./secrets";
 
 const PREFIX = "enc:v1:";
 
 function getKey() {
-  const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
-  return crypto.createHash("sha256").update(secret).digest();
+  return crypto.createHash("sha256").update(getEncryptionSecret()).digest();
 }
 
 /**
@@ -54,6 +54,8 @@ export function decryptDataUrl(stored: string): string {
  * case-insensitively everywhere else in practice.
  */
 export function hashEmail(email: string): string {
-  const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
-  return crypto.createHmac("sha256", secret).update(email.trim().toLowerCase()).digest("hex");
+  return crypto
+    .createHmac("sha256", getEncryptionSecret())
+    .update(email.trim().toLowerCase())
+    .digest("hex");
 }

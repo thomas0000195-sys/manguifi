@@ -17,7 +17,8 @@
     "db:list-backups": "node --env-file-if-exists=.env --import tsx scripts/list-backups.ts",
     "cap:sync": "cap sync",
     "cap:android": "cap open android",
-    "cap:ios": "cap open ios"
+    "cap:ios": "cap open ios",
+    "test:auth": "node --experimental-test-module-mocks --import tsx --test \"tests/*.test.ts\""
   },
   "prisma": {
     "seed": "node --env-file-if-exists=.env --import tsx prisma/seed.ts"
@@ -52,6 +53,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
+    "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",

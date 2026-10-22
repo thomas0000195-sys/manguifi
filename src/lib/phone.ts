@@ -1,5 +1,6 @@
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import crypto from "node:crypto";
+import { getEncryptionSecret } from "./secrets";
 
 /**
  * Deterministic HMAC-SHA256 of a normalized E.164 phone number — lets the
@@ -10,8 +11,7 @@ import crypto from "node:crypto";
  * compromised everything this would protect anyway.
  */
 export function hashPhone(e164: string): string {
-  const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
-  return crypto.createHmac("sha256", secret).update(e164).digest("hex");
+  return crypto.createHmac("sha256", getEncryptionSecret()).update(e164).digest("hex");
 }
 
 /**

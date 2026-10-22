@@ -21,19 +21,23 @@ export type SendEmailOtpResult = { sent: true } | { sent: false; error: string }
 /**
  * Email equivalent of Twilio's sendOtp — generates a 6-digit code, stores
  * only its hash (same pattern as PasswordResetToken), and emails it via
- * Resend. Any previous pending codes for this email are left alone (they
- * simply expire); we don't need Twilio's single-active-verification
- * behavior since our own verify step already checks attempts + expiry.
+ * Resend. Any previously pending code for this email is consumed first, so
+ * only the most recent code can ever be validated.
  */
 export async function sendEmailOtp(email: string): Promise<SendEmailOtpResult> {
   if (!process.env.RESEND_API_KEY) {
     return { sent: false, error: "L'envoi de code par email n'est pas configuré." };
   }
 
+  const emailHash = hashEmail(email);
   const code = generateCode();
+  await prisma.emailOtpCode.updateMany({
+    where: { emailHash, consumedAt: null },
+    data: { consumedAt: new Date() },
+  });
   await prisma.emailOtpCode.create({
     data: {
-      emailHash: hashEmail(email),
+      emailHash,
       codeHash: hashCode(code),
       expiresAt: new Date(Date.now() + EXPIRY_MS),
     },
@@ -64,7 +68,7 @@ export async function checkEmailOtp(email: string, code: string): Promise<CheckE
     return { approved: false, error: "Trop de tentatives pour ce code. Demandez-en un nouveau." };
   }
 
-  if (pending.codeHash !== hashCode(code)) {
+  if (!codeMatches(pending.codeHash, hashCode(code))) {
     await prisma.emailOtpCode.update({
       where: { id: pending.id },
       data: { attempts: { increment: 1 } },
@@ -72,9 +76,20 @@ export async function checkEmailOtp(email: string, code: string): Promise<CheckE
     return { approved: false, error: "Code invalide ou expiré." };
   }
 
-  await prisma.emailOtpCode.update({
-    where: { id: pending.id },
+  // Consommation conditionnelle : si deux requêtes valident le même code en
+  // parallèle, une seule reçoit count = 1 et obtient la session.
+  const consumed = await prisma.emailOtpCode.updateMany({
+    where: { id: pending.id, consumedAt: null },
     data: { consumedAt: new Date() },
   });
+  if (consumed.count === 0) {
+    return { approved: false, error: "Code invalide ou expiré." };
+  }
   return { approved: true };
+}
+
+function codeMatches(storedHash: string, candidateHash: string): boolean {
+  const a = Buffer.from(storedHash, "hex");
+  const b = Buffer.from(candidateHash, "hex");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
