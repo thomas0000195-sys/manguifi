@@ -233,7 +233,7 @@ export async function createEmployeeAction(
     employeeEmail = email;
     emailHash = hashEmail(email);
     const existingEmail = await prisma.employee.findUnique({ where: { emailHash } });
-    if (existingEmail) return { error: "Cet email est déjà utilisé par un autre employé." };
+    if (existingEmail) return { error: "Impossible d'ajouter cet employé avec ces coordonnées. Vérifiez-les ou contactez le support." };
   } else {
     if (!rawPhone) return { error: "Téléphone requis." };
     const { toE164 } = await import("@/lib/phone");
@@ -241,7 +241,7 @@ export async function createEmployeeAction(
     if (!phone) return { error: "Numéro de téléphone invalide." };
     phoneHash = hashPhone(phone);
     const existingPhone = await prisma.employee.findUnique({ where: { phoneHash } });
-    if (existingPhone) return { error: "Ce numéro est déjà utilisé par un autre employé." };
+    if (existingPhone) return { error: "Impossible d'utiliser ce numéro. Vérifiez-le ou contactez le support." };
     employeeEmail = email || null;
   }
 
@@ -251,7 +251,7 @@ export async function createEmployeeAction(
   if (employeeEmail && !emailHash) {
     emailHash = hashEmail(employeeEmail);
     const existingEmail = await prisma.employee.findUnique({ where: { emailHash } });
-    if (existingEmail) return { error: "Cet email est déjà utilisé par un autre employé." };
+    if (existingEmail) return { error: "Impossible d'ajouter cet employé avec ces coordonnées. Vérifiez-les ou contactez le support." };
   }
 
   const team = await prisma.team.findFirst({ where: { id: teamId, orgId: session.orgId } });
@@ -461,7 +461,7 @@ export async function importEmployeesCsvAction(
         lastName,
         status: "error",
         reason: existingPhoneHashes.has(phoneHash)
-          ? "Numéro déjà utilisé par un employé existant."
+          ? "Ligne ignorée : coordonnées déjà utilisées."
           : "Doublon dans le fichier.",
       });
       continue;
@@ -476,7 +476,7 @@ export async function importEmployeesCsvAction(
         lastName,
         status: "error",
         reason: existingEmailHashes.has(emailHash)
-          ? "Email déjà utilisé par un employé existant."
+          ? "Ligne ignorée : coordonnées déjà utilisées."
           : "Doublon dans le fichier.",
       });
       continue;
@@ -720,7 +720,7 @@ export async function updateEmployeePhoneAction(
   const phoneHash = hashPhone(e164);
   const existing = await prisma.employee.findUnique({ where: { phoneHash } });
   if (existing && existing.id !== employeeId) {
-    return { error: "Ce numéro est déjà utilisé par un autre employé." };
+    return { error: "Impossible d'utiliser ce numéro. Vérifiez-le ou contactez le support." };
   }
 
   await prisma.employee.update({

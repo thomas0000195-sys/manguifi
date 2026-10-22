@@ -1,6 +1,6 @@
 import { requireUser, assertEmployeeInScope } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
-import { decryptDataUrl } from "@/lib/crypto";
+import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import Link from "next/link";
 import { ArrowLeft, Mail, CheckCircle2, Clock, Calendar } from "lucide-react";
 import ProfileCard from "./ProfileCard";
@@ -23,13 +23,13 @@ export default async function EmployeeProfilePage({
     include: { team: { include: { site: true } }, user: true },
   });
 
-  const photoDataUrl = employeeRaw.photoUrl ? decryptDataUrl(employeeRaw.photoUrl) : null;
+  const photoDataUrl = employeeRaw.photoUrl ? decryptDataUrlForDisplay(employeeRaw.photoUrl) : null;
   const employee = {
     ...employeeRaw,
-    phone: employeeRaw.phone ? decryptDataUrl(employeeRaw.phone) : null,
-    email: employeeRaw.email ? decryptDataUrl(employeeRaw.email) : null,
-    dateOfBirth: employeeRaw.dateOfBirth ? decryptDataUrl(employeeRaw.dateOfBirth) : null,
-    idNumber: employeeRaw.idNumber ? decryptDataUrl(employeeRaw.idNumber) : null,
+    phone: employeeRaw.phone ? decryptDataUrlForDisplay(employeeRaw.phone) : null,
+    email: employeeRaw.email ? decryptDataUrlForDisplay(employeeRaw.email) : null,
+    dateOfBirth: employeeRaw.dateOfBirth ? decryptDataUrlForDisplay(employeeRaw.dateOfBirth) : null,
+    idNumber: employeeRaw.idNumber ? decryptDataUrlForDisplay(employeeRaw.idNumber) : null,
   };
 
   return (

@@ -10,7 +10,7 @@ import {
   startOfDay,
 } from "@/lib/attendance-logic";
 import { distanceInMeters } from "@/lib/geo";
-import { encryptDataUrl, decryptDataUrl } from "@/lib/crypto";
+import { encryptDataUrl, decryptDataUrlForDisplay } from "@/lib/crypto";
 import type { Employee, Organization, Site, Team } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -154,7 +154,7 @@ async function performPunch(
   return {
     success: true,
     employeeName: `${employee.firstName} ${employee.lastName}`,
-    employeePhotoUrl: employee.photoUrl ? decryptDataUrl(employee.photoUrl) : null,
+    employeePhotoUrl: employee.photoUrl ? decryptDataUrlForDisplay(employee.photoUrl) : null,
     employeePosition: employee.position,
     type,
     time: now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),

@@ -47,6 +47,21 @@ export function decryptDataUrl(stored: string): string {
 }
 
 /**
+ * Variante pour l'affichage uniquement (listes, en-têtes, pages de profil) :
+ * une donnée illisible devient null et est journalisée sans sa valeur, au lieu
+ * de faire échouer toute la page. Ne jamais l'utiliser pour une décision
+ * d'accès, un envoi ou un export : là, decryptDataUrl doit échouer.
+ */
+export function decryptDataUrlForDisplay(stored: string): string | null {
+  try {
+    return decryptDataUrl(stored);
+  } catch {
+    console.error("Donnée chiffrée illisible affichée comme vide.");
+    return null;
+  }
+}
+
+/**
  * Deterministic HMAC-SHA256 of an email address — same rationale as
  * hashPhone (lib/phone.ts): User.email is encrypted at rest, so exact-match
  * login lookups go through this hash instead of the ciphertext column.
