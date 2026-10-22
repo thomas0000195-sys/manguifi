@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
-import { decryptDataUrl } from "@/lib/crypto";
+import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import Link from "next/link";
 import { ArrowLeft, ScrollText } from "lucide-react";
 
@@ -76,7 +76,7 @@ export default async function JournalPage() {
                   {ACTION_LABELS[log.action] ?? log.action}
                 </p>
                 <p className="truncate text-xs text-muted">
-                  {(log.user?.email ? decryptDataUrl(log.user.email) : null) ?? "Système"}
+                  {(log.user?.email ? decryptDataUrlForDisplay(log.user.email) : null) ?? "Système"}
                   {log.details ? ` — ${log.details}` : ""}
                 </p>
               </div>

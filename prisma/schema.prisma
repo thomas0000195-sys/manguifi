@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -433,4 +432,16 @@ model AuditLog {
   entityId   String
   details    String?
   createdAt  DateTime @default(now())
+}
+
+// Compteurs de limitation de débit partagés entre toutes les instances
+// (src/lib/rate-limit.ts). `key` est une empreinte SHA-256 : aucun email,
+// téléphone ni IP n'est stocké en clair. Les lignes expirées sont purgées
+// par rate-limit.ts.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
 }

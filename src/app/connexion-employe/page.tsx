@@ -1,14 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
+// Ancienne page de connexion employé par WhatsApp. Les liens existants
+// (e-mails d'invitation, page d'accueil) pointent encore ici.
 export default function ConnexionEmployePage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/connexion");
-  }, [router]);
-
-  return null;
+  redirect("/connexion");
 }

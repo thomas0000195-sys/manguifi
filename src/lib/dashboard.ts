@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { computeDailyStatus, startOfDay, endOfDay, isDateJustified } from "./attendance-logic";
+import { computeDailyStatus, startOfDay, isDateJustified } from "./attendance-logic";
 
 export { getScopedTeamIds } from "./guard";
 

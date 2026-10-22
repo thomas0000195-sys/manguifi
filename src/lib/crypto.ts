@@ -1,10 +1,10 @@
 import crypto from "node:crypto";
+import { getEncryptionSecret } from "./secrets";
 
 const PREFIX = "enc:v1:";
 
 function getKey() {
-  const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
-  return crypto.createHash("sha256").update(secret).digest();
+  return crypto.createHash("sha256").update(getEncryptionSecret()).digest();
 }
 
 /**
@@ -40,7 +40,24 @@ export function decryptDataUrl(stored: string): string {
     const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return plain.toString("utf8");
   } catch {
-    return stored;
+    // Donnée illisible (ENCRYPTION_KEY différente ou donnée altérée) : on échoue
+    // explicitement au lieu de renvoyer le texte chiffré comme s'il était valide.
+    throw new Error("Donnée chiffrée illisible : vérifier ENCRYPTION_KEY et l'intégrité de la base.");
+  }
+}
+
+/**
+ * Variante pour l'affichage uniquement (listes, en-têtes, pages de profil) :
+ * une donnée illisible devient null et est journalisée sans sa valeur, au lieu
+ * de faire échouer toute la page. Ne jamais l'utiliser pour une décision
+ * d'accès, un envoi ou un export : là, decryptDataUrl doit échouer.
+ */
+export function decryptDataUrlForDisplay(stored: string): string | null {
+  try {
+    return decryptDataUrl(stored);
+  } catch {
+    console.error("Donnée chiffrée illisible affichée comme vide.");
+    return null;
   }
 }
 
@@ -54,6 +71,8 @@ export function decryptDataUrl(stored: string): string {
  * case-insensitively everywhere else in practice.
  */
 export function hashEmail(email: string): string {
-  const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
-  return crypto.createHmac("sha256", secret).update(email.trim().toLowerCase()).digest("hex");
+  return crypto
+    .createHmac("sha256", getEncryptionSecret())
+    .update(email.trim().toLowerCase())
+    .digest("hex");
 }

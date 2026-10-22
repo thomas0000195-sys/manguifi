@@ -1,7 +1,7 @@
 import { requireUser, getScopedTeamIds } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { generateSiteQrDataUrl } from "@/lib/qr";
-import { decryptDataUrl } from "@/lib/crypto";
+import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import EquipesClient from "./EquipesClient";
 
 export default async function EquipesPage() {
@@ -34,8 +34,8 @@ export default async function EquipesPage() {
         ...r,
         user: {
           ...r.user,
-          email: r.user.email ? decryptDataUrl(r.user.email) : null,
-          phone: r.user.phone ? decryptDataUrl(r.user.phone) : null,
+          email: r.user.email ? decryptDataUrlForDisplay(r.user.email) : null,
+          phone: r.user.phone ? decryptDataUrlForDisplay(r.user.phone) : null,
         },
       })),
       teams: s.teams.map((t) => ({
@@ -44,8 +44,8 @@ export default async function EquipesPage() {
           ...r,
           user: {
             ...r.user,
-            email: r.user.email ? decryptDataUrl(r.user.email) : null,
-            phone: r.user.phone ? decryptDataUrl(r.user.phone) : null,
+            email: r.user.email ? decryptDataUrlForDisplay(r.user.email) : null,
+            phone: r.user.phone ? decryptDataUrlForDisplay(r.user.phone) : null,
           },
         })),
       })),

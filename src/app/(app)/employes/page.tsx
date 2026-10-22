@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { getScopedTeamIds } from "@/lib/dashboard";
-import { decryptDataUrl } from "@/lib/crypto";
+import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import EmployeesClient from "./EmployeesClient";
 
 export default async function EmployesPage() {
@@ -28,9 +28,9 @@ export default async function EmployesPage() {
 
   const employees = employeesRaw.map((e) => ({
     ...e,
-    phone: e.phone ? decryptDataUrl(e.phone) : null,
-    email: e.email ? decryptDataUrl(e.email) : null,
-    photoUrl: e.photoUrl ? decryptDataUrl(e.photoUrl) : null,
+    phone: e.phone ? decryptDataUrlForDisplay(e.phone) : null,
+    email: e.email ? decryptDataUrlForDisplay(e.email) : null,
+    photoUrl: e.photoUrl ? decryptDataUrlForDisplay(e.photoUrl) : null,
   }));
 
   return (

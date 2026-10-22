@@ -4,6 +4,9 @@ import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import PwaRegister from "@/components/PwaRegister";
 
+// Rendu dynamique : chaque page reçoit un nonce CSP (src/proxy.ts).
+export const dynamic = "force-dynamic";
+
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],

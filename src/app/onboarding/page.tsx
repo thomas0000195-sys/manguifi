@@ -1,12 +1,12 @@
 import { requireUser } from "@/lib/guard";
-import { decryptDataUrl } from "@/lib/crypto";
+import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import OnboardingWizard from "./OnboardingWizard";
 import { QrCode } from "lucide-react";
 import Link from "next/link";
 
 export default async function OnboardingPage() {
   const user = await requireUser(["ADMIN"]);
-  const email = user.email ? decryptDataUrl(user.email) : "";
+  const email = user.email ? decryptDataUrlForDisplay(user.email) : "";
 
   return (
     <div className="flex flex-1 flex-col items-center bg-background px-5 py-12">

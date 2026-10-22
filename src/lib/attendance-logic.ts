@@ -53,12 +53,7 @@ function isOvernightSchedule(schedule: ShiftTimes) {
   return parseTimeToMinutes(schedule.endTime) <= parseTimeToMinutes(schedule.startTime);
 }
 
-export function minutesToLabel(mins: number) {
-  const h = Math.floor(Math.abs(mins) / 60);
-  const m = Math.abs(mins) % 60;
-  const sign = mins < 0 ? "-" : "";
-  return `${sign}${h}h${m.toString().padStart(2, "0")}`;
-}
+export { minutesToLabel } from "./time-format";
 
 export async function getScheduleForEmployee(
   employee: Employee,

@@ -1,15 +1,15 @@
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { toE164, hashPhone } from "../src/lib/phone";
 import { hashEmail } from "../src/lib/crypto";
+import { getEncryptionSecret } from "../src/lib/secrets";
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 const PREFIX = "enc:v1:";
 function getKey() {
-  const secret = process.env.ENCRYPTION_KEY ?? process.env.AUTH_SECRET ?? "manguifi-dev-fallback-key";
-  return crypto.createHash("sha256").update(secret).digest();
+  return crypto.createHash("sha256").update(getEncryptionSecret()).digest();
 }
 function encryptDataUrl(plain: string): string {
   const iv = crypto.randomBytes(12);

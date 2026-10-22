@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import Papa from "papaparse";
 import jsPDF from "jspdf";
 import toast from "react-hot-toast";
-import { minutesToLabel } from "@/lib/attendance-logic";
+import { minutesToLabel } from "@/lib/time-format";
 import { OVERTIME_SEVERITY_LABEL, type OvertimeSeverity } from "@/lib/overtime-severity";
 import { validateOvertimeAction } from "@/app/actions/overtime";
 import { Download, FileDown, Check, X, Loader2 } from "lucide-react";

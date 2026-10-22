@@ -8,10 +8,10 @@
  *
  * Run with: npx tsx scripts/concurrency-test.ts
  */
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/prisma";
 import { hashPhone } from "../src/lib/phone";
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function attemptPunch(employeeId: string, orgId: string, siteId: string) {
   const now = new Date();

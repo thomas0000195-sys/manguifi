@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkCronAuth } from "@/lib/cron-auth";
 import { put, list, del } from "@vercel/blob";
 
 const DEFAULT_RETENTION_DAYS = 30;
@@ -22,30 +23,26 @@ export const dynamic = "force-dynamic";
  * a Blob store created and connected to the project (Vercel dashboard →
  * Storage → Blob), which sets BLOB_READ_WRITE_TOKEN automatically.
  *
- * Protect it: set CRON_SECRET in the environment and call with either
- * `Authorization: Bearer <secret>` or `?secret=<secret>`. Without a secret
- * configured the route refuses to run (fails closed, not open).
+ * Protect it: set CRON_SECRET in the environment and call with
+ * `Authorization: Bearer <secret>`. The secret is never accepted in the URL
+ * (URLs end up in logs). Without a secret configured the route refuses to
+ * run (fails closed, not open).
  *
  * Example (Windows Task Scheduler, daily):
  *   curl -H "Authorization: Bearer %CRON_SECRET%" https://your-domain/api/cron/backup
  *
- * Example (Vercel Cron, in vercel.json):
- *   { "crons": [{ "path": "/api/cron/backup?secret=YOUR_SECRET", "schedule": "0 3 * * *" }] }
+ * Vercel Cron (vercel.json) sends the Authorization header itself when
+ * CRON_SECRET is defined in the project's environment variables.
  */
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
+  const auth = checkCronAuth(req.headers.get("authorization"));
+  if (auth === "unconfigured") {
     return NextResponse.json(
       { error: "CRON_SECRET n'est pas configuré — sauvegarde désactivée par sécurité." },
       { status: 503 }
     );
   }
-
-  const authHeader = req.headers.get("authorization");
-  const querySecret = req.nextUrl.searchParams.get("secret");
-  const provided = authHeader?.replace(/^Bearer\s+/i, "") ?? querySecret;
-
-  if (provided !== secret) {
+  if (auth === "unauthorized") {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

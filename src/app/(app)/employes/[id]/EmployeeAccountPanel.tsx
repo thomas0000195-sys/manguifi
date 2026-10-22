@@ -101,7 +101,7 @@ export default function EmployeeAccountPanel({
       {!active && (
         <p className="mt-3 text-xs text-muted">
           Communiquez ce numéro à l&apos;employé : il pourra se connecter directement depuis{" "}
-          <span className="font-mono">/connexion-employe</span> avec un code envoyé par WhatsApp (SMS en secours).
+          <span className="font-mono">/connexion-employe</span> avec un code envoyé par e-mail.
         </p>
       )}
     </div>

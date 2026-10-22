@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, MessageCircle, Fingerprint } from "lucide-react";
+import { Mail, MessageCircle, UserRound } from "lucide-react";
 import LoginForm from "./LoginForm";
-import MatriculeLoginForm from "./MatriculeLoginForm";
+import EmployeeEmailLoginForm from "./EmployeeEmailLoginForm";
 import WhatsAppLoginTab from "./WhatsAppLoginTab";
 
 const SMS_OTP_ENABLED = process.env.NEXT_PUBLIC_SMS_OTP_ENABLED === "true";
 
-type Tab = "email" | "matricule" | "whatsapp";
+type Tab = "email" | "employee" | "whatsapp";
 
 export default function LoginTabs() {
   const [tab, setTab] = useState<Tab>("email");
@@ -27,12 +27,12 @@ export default function LoginTabs() {
         </button>
         <button
           type="button"
-          onClick={() => setTab("matricule")}
+          onClick={() => setTab("employee")}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition ${
-            tab === "matricule" ? "bg-white text-navy-950 shadow-sm" : "text-muted"
+            tab === "employee" ? "bg-white text-navy-950 shadow-sm" : "text-muted"
           }`}
         >
-          <Fingerprint className="h-3.5 w-3.5" /> Matricule
+          <UserRound className="h-3.5 w-3.5" /> Employé
         </button>
         {SMS_OTP_ENABLED && (
           <button
@@ -47,7 +47,7 @@ export default function LoginTabs() {
         )}
       </div>
       {tab === "email" && <LoginForm />}
-      {tab === "matricule" && <MatriculeLoginForm />}
+      {tab === "employee" && <EmployeeEmailLoginForm />}
       {tab === "whatsapp" && SMS_OTP_ENABLED && <WhatsAppLoginTab />}
     </div>
   );

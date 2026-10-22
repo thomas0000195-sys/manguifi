@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { checkCronAuth } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,19 +19,14 @@ export const dynamic = "force-dynamic";
  *   curl -H "Authorization: Bearer %CRON_SECRET%" https://your-domain/api/cron/retention
  */
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
+  const auth = checkCronAuth(req.headers.get("authorization"));
+  if (auth === "unconfigured") {
     return NextResponse.json(
       { error: "CRON_SECRET n'est pas configuré — purge désactivée par sécurité." },
       { status: 503 }
     );
   }
-
-  const authHeader = req.headers.get("authorization");
-  const querySecret = req.nextUrl.searchParams.get("secret");
-  const provided = authHeader?.replace(/^Bearer\s+/i, "") ?? querySecret;
-
-  if (provided !== secret) {
+  if (auth === "unauthorized") {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/guard";
-import { decryptDataUrl } from "@/lib/crypto";
+import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import ScannerClient from "@/components/ScannerClient";
 import { redirect } from "next/navigation";
 
@@ -12,7 +12,7 @@ export default async function ScannerPage() {
       photoOnPunchEnabled={user.org.photoOnPunchEnabled}
       hapticEnabled={user.org.hapticFeedbackEnabled}
       employeeName={`${user.employee.firstName} ${user.employee.lastName}`}
-      employeePhotoUrl={user.employee.photoUrl ? decryptDataUrl(user.employee.photoUrl) : null}
+      employeePhotoUrl={user.employee.photoUrl ? decryptDataUrlForDisplay(user.employee.photoUrl) : null}
       employeePosition={user.employee.position}
       backHref="/espace"
     />

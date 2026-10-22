@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/guard";
-import { decryptDataUrl } from "@/lib/crypto";
+import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import { redirect } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import { CURRENT_TERMS_VERSION } from "@/lib/terms";
@@ -13,7 +13,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       orgName={user.org.name}
-      userEmail={user.email ? decryptDataUrl(user.email) : null}
+      userEmail={user.email ? decryptDataUrlForDisplay(user.email) : null}
       role={user.role}
       isDemo={user.org.isDemo}
       termsAccepted={user.termsVersion === CURRENT_TERMS_VERSION}

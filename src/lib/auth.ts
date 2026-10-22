@@ -4,11 +4,13 @@ import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { prisma } from "./prisma";
 import type { Role } from "@prisma/client";
+import { getAuthSecret } from "./secrets";
 
 const SESSION_COOKIE = "manguifi_session";
-const secretKey = new TextEncoder().encode(
-  process.env.AUTH_SECRET ?? "manguifi-dev-secret-change-in-production-please-1234567890"
-);
+
+function getSecretKey() {
+  return new TextEncoder().encode(getAuthSecret());
+}
 
 export type SessionPayload = {
   userId: string;
@@ -16,7 +18,22 @@ export type SessionPayload = {
   role: Role;
   email: string | null;
   employeeId: string | null;
+  /** Empreinte des identifiants au moment de la connexion (voir credentialFingerprint). */
+  cv: string;
 };
+
+/**
+ * Empreinte du mot de passe, embarquée dans la session. Une réinitialisation
+ * du mot de passe modifie le hash, donc invalide toutes les sessions émises
+ * avant. Pas de colonne dédiée : aucune migration nécessaire.
+ */
+function credentialFingerprint(passwordHash: string | null): string {
+  return crypto
+    .createHash("sha256")
+    .update(passwordHash ?? "no-password")
+    .digest("hex")
+    .slice(0, 32);
+}
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -26,12 +43,21 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createSession(payload: SessionPayload) {
-  const token = await new SignJWT({ ...payload })
+export async function createSession(payload: Omit<SessionPayload, "cv">) {
+  const account = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { passwordHash: true },
+  });
+  if (!account) throw new Error("Compte introuvable.");
+
+  const token = await new SignJWT({
+    ...payload,
+    cv: credentialFingerprint(account.passwordHash),
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
-    .sign(secretKey);
+    .sign(getSecretKey());
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -52,12 +78,31 @@ export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
+  // Hors du try : une configuration sans secret doit échouer bruyamment, pas
+  // être traitée comme une session invalide.
+  const key = getSecretKey();
+  let session: SessionPayload;
   try {
-    const { payload } = await jwtVerify(token, secretKey);
-    return payload as unknown as SessionPayload;
+    const { payload } = await jwtVerify(token, key);
+    session = payload as unknown as SessionPayload;
   } catch {
     return null;
   }
+
+  // La signature ne suffit pas : le compte doit encore exister, avec les mêmes
+  // identifiants, et un employé doit être ACTIF. Vérifié à chaque accès pour
+  // que la désactivation ou la réinitialisation prennent effet immédiatement,
+  // y compris pour les actions serveur qui n'appellent que requireSession().
+  const account = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { passwordHash: true, employee: { select: { status: true } } },
+  });
+  if (!account) return null;
+  if (!session.cv || session.cv !== credentialFingerprint(account.passwordHash)) return null;
+  if (account.employee && account.employee.status !== "ACTIF") return null;
+  if (session.role === "EMPLOYEE" && !account.employee) return null;
+
+  return session;
 }
 
 export async function requireSession() {
