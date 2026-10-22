@@ -108,3 +108,21 @@ Justification : aucune vulnérabilité critique connue ne subsiste dans le code 
 - la migration de production n'est pas encore appliquée.
 
 Ce rapport ne déclare pas l'application totalement sécurisée. Il couvre le périmètre décrit en tête et les limites indiquées ci-dessus.
+
+## I. Suite : mise en production et dette technique
+
+### Mise en production
+
+- Pull Request #1 (corrections de sécurité) fusionnée dans `master`, déploiement de production Ready.
+- Pull Request #2 : photo de profil facultative, photo en libre-service pour l'employé (`/espace/compte`).
+- La base de production est vide de données : toutes les entreprises de test ont été supprimées. Toute nouvelle entreprise repart de zéro.
+- La connexion employé par code e-mail a été vérifiée sur le Preview (Resend, domaine `manguifi.tech` vérifié).
+
+### Dette technique à planifier
+
+1. **`style-src 'unsafe-inline'`** : des styles `style=""` sont rendus par le serveur sur plusieurs pages. Voir `csp.md`.
+2. **Photos et justificatifs en base** : plan dans `donnees-binaires.md`, aucune migration faite.
+3. **Table `OTPCode`** : plus utilisée par le code, à supprimer après accord.
+4. **Historique des migrations** : la base de production contient une migration (`20261001_add_access_code_tables`) absente du dépôt. Toute nouvelle migration doit être appliquée à la main (`npm run db:migrate`), après sauvegarde.
+5. **Bases Neon** : une base par environnement (production, preview, développement). Ne jamais appliquer une migration sur la production sans l'avoir testée sur le Preview.
+6. **Message de console** « An unknown error occurred when fetching the script » : probablement lié à l'onglet de test, non reproduit sur le serveur.
