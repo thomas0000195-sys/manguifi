@@ -5,8 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
  * « Content Security Policy »). Remplace la directive `script-src 'unsafe-inline'`
  * de next.config.ts : seuls les scripts portant le nonce s'exécutent.
  *
- * style-src garde 'unsafe-inline' : l'application utilise des attributs
- * style="" dans le HTML rendu, que les nonces ne couvrent pas.
+ * style-src garde 'unsafe-inline' : le HTML rendu côté serveur contient des
+ * attributs style="" (une dizaine de chaînes distinctes, vues sur /dashboard,
+ * /employes, /rapports, /parametres, /equipes). Un nonce ne les couvre pas et
+ * les hashes ne suffisent pas sans 'unsafe-hashes'. Voir docs/securite/csp.md.
  *
  * Les pages doivent être rendues dynamiquement pour recevoir un nonce
  * (voir `export const dynamic` dans src/app/layout.tsx).

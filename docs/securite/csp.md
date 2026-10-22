@@ -6,7 +6,7 @@ La CSP est posée par `src/proxy.ts`, avec un nonce unique par requête :
 
 - `script-src 'self' 'nonce-…' 'strict-dynamic'` : seuls les scripts portant le nonce s'exécutent. `'unsafe-inline'` a été retiré des scripts.
 - `'unsafe-eval'` n'est présent qu'en développement (requis par React pour ses diagnostics).
-- `style-src 'self' 'unsafe-inline'` : conservé. L'application rend des attributs `style="…"` dans le HTML serveur, et les nonces ne couvrent pas ces attributs. Le retirer demande de convertir ces styles en classes ou en nonces de style.
+- `style-src 'self' 'unsafe-inline'` : conservé, voir « Essai sans unsafe-inline » ci-dessous.
 - `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`, `connect-src 'self'`.
 - `upgrade-insecure-requests` n'est pas posé : une instance servie en HTTP seul casserait sinon tous ses chunks.
 
@@ -16,19 +16,24 @@ Les pages sont rendues dynamiquement (`export const dynamic = "force-dynamic"` d
 
 - Build de production : OK, toutes les pages en rendu dynamique (ƒ).
 - Serveur de production local : en-tête CSP présent avec un nonce différent à chaque requête ; hydratation React fonctionnelle (changement d'onglet sur `/connexion` déclenché en JavaScript, sans violation CSP remontée).
-- Un clic souris sur l'onglet a affiché dans la console « An unknown error occurred when fetching the script ». Il n'a pas été reproduit en déclenchant le clic en JavaScript, et aucune violation CSP n'a été enregistrée. Cause non identifiée.
+- Le message « An unknown error occurred when fetching the script » apparaît sur les pages en production. Les seules requêtes en échec sont des préchargements de liens (`?_rsc=`) annulés par le navigateur (`ERR_ABORTED`), toutes les ressources du site répondent 200. Très probablement lié à l'état de l'onglet de test (fenêtre non affichée), non reproduit sur le serveur de développement. Aucune violation CSP n'est liée à ce message.
 
 ## Limites
 
 - Les tests de bout en bout des parcours connectés (admin, employé) n'ont pas été rejoués sous la nouvelle CSP.
 - Les scripts tiers éventuels (Sentry, si activé) doivent être vérifiés : `connect-src 'self'` bloque leurs envois.
 
-## Plan pour retirer `'unsafe-inline'` des styles
+## Essai sans unsafe-inline pour les styles
 
-1. Recenser les `style="…"` dans le HTML serveur (`grep -rn 'style="' src`).
-2. Les remplacer par des classes Tailwind ou par des propriétés React `style={{…}}` (qui passent par CSSOM et ne sont pas bloqués).
-3. Passer `style-src` à `'self' 'nonce-…'` dans `src/proxy.ts`.
-4. Vérifier les pages principales dans le navigateur, console propre.
+Mesuré en production locale, en retirant `'unsafe-inline'` de `style-src` (nonce seul) : le navigateur bloque une dizaine de chaînes `style="…"` différentes sur /dashboard, /employes, /rapports, /parametres et /equipes. Ce sont des styles rendus par le serveur, que ni un nonce ni un hash ne couvrent. Le retrait casserait la mise en page. Décision : `'unsafe-inline'` reste sur `style-src`.
+
+Pour le retirer, il faut :
+
+1. Trouver le composant qui produit chaque `style="…"` (les hashes sont visibles dans la console du navigateur).
+2. Le convertir en classes Tailwind, ou en valeurs calculées côté client.
+3. Recommencer l'essai et vérifier la console sur chaque page principale.
+
+Coût estimé : plusieurs composants touchés, à traiter comme un chantier séparé.
 
 ## Retour arrière
 
