@@ -7,6 +7,7 @@ import ProfileCard from "./ProfileCard";
 import EmployeeAccountPanel from "./EmployeeAccountPanel";
 import EmployeePhotoUpload from "./EmployeePhotoUpload";
 import ExportEmployeeDataButton from "./ExportEmployeeDataButton";
+import ProfileHistory, { PROFILE_HISTORY_ACTIONS } from "./ProfileHistory";
 
 export default async function EmployeeProfilePage({
   params,
@@ -22,6 +23,22 @@ export default async function EmployeeProfilePage({
     where: { id },
     include: { team: { include: { site: true } }, user: true },
   });
+
+  // Historique en lecture seule, réservé à l'admin de l'entreprise (même périmètre que la fiche).
+  const profileHistory =
+    user.role === "ADMIN"
+      ? await prisma.auditLog.findMany({
+          where: {
+            orgId: user.orgId,
+            entityType: "Employee",
+            entityId: employeeRaw.id,
+            action: { in: [...PROFILE_HISTORY_ACTIONS] },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: { action: true, createdAt: true, details: true },
+        })
+      : [];
 
   const photoDataUrl = employeeRaw.photoUrl ? decryptDataUrlForDisplay(employeeRaw.photoUrl) : null;
   const employee = {
@@ -85,6 +102,8 @@ export default async function EmployeeProfilePage({
       </Link>
 
       <ProfileCard employee={employee} photoDataUrl={photoDataUrl} />
+
+      {user.role === "ADMIN" && <ProfileHistory entries={profileHistory} />}
 
       {user.role === "ADMIN" && employee.phone && (
         <EmployeeAccountPanel
