@@ -85,12 +85,8 @@ export default function OnboardingWizard() {
 
   function handleEmployee(formData: FormData, form: HTMLFormElement) {
     setError(null);
-    if (!photoPreview) {
-      setError("La photo de profil est obligatoire.");
-      return;
-    }
     formData.set("teamId", teamId ?? "");
-    formData.set("photoDataUrl", photoPreview);
+    if (photoPreview) formData.set("photoDataUrl", photoPreview);
     startTransition(async () => {
       const res = await createEmployeeAction({}, formData);
       if (res.error) return setError(res.error);
@@ -283,7 +279,7 @@ export default function OnboardingWizard() {
                   <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleEmployeePhoto} />
                 </label>
                 <p className="text-xs text-muted">
-                  Photo de profil <span className="text-red-500">*</span> — obligatoire
+                  Photo de profil — facultative, l&apos;employé pourra l&apos;ajouter plus tard
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">

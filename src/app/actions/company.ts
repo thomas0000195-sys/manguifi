@@ -4,6 +4,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { checkProfilePhoto } from "@/lib/profile";
 import { encryptDataUrl, hashEmail } from "@/lib/crypto";
 import { hashPhone } from "@/lib/phone";
 import { generateMatricule } from "@/lib/matricule";
@@ -187,7 +189,7 @@ const employeeSchema = z.object({
   email: z.string().email().optional().or(z.literal("")),
   teamId: z.string().min(1, "Équipe requise"),
   position: z.string().optional().or(z.literal("")),
-  photoDataUrl: z.string().min(10, "La photo de profil est obligatoire."),
+  photoDataUrl: z.string().optional().or(z.literal("")),
   dateOfBirth: z.string().optional().or(z.literal("")),
   idNumber: z.string().optional().or(z.literal("")),
 });
@@ -217,7 +219,7 @@ export async function createEmployeeAction(
   const { firstName, lastName, phone: rawPhone, email, teamId, position, photoDataUrl, dateOfBirth, idNumber } =
     parsed.data;
 
-  if (!photoDataUrl.startsWith("data:image/")) {
+  if (photoDataUrl && !photoDataUrl.startsWith("data:image/")) {
     return { error: "Format d'image invalide pour la photo de profil." };
   }
 
@@ -270,7 +272,7 @@ export async function createEmployeeAction(
       email: employeeEmail ? encryptDataUrl(employeeEmail) : null,
       emailHash,
       position: position || null,
-      photoUrl: encryptDataUrl(photoDataUrl),
+      photoUrl: photoDataUrl ? encryptDataUrl(photoDataUrl) : null,
       matricule,
       dateOfBirth: dateOfBirth ? encryptDataUrl(new Date(dateOfBirth).toISOString()) : null,
       idNumber: idNumber ? encryptDataUrl(idNumber) : null,
@@ -786,5 +788,41 @@ export async function updateEmployeePhotoAction(
 
   revalidatePath("/employes");
   revalidatePath(`/employes/${employeeId}`);
+  return { success: true };
+}
+
+/**
+ * Un employé ajoute ou remplace sa propre photo de profil depuis /espace/compte.
+ * Même règles de taille et de format que la version administrateur.
+ */
+export async function updateMyPhotoAction(photoDataUrl: string): Promise<ActionState> {
+  const session = await requireSession();
+  if (session.role !== "EMPLOYEE" || !session.employeeId) {
+    return { error: "Réservé aux comptes employé." };
+  }
+
+  // Contrôle du format et de la taille (2 Mo après compression) côté serveur.
+  const check = checkProfilePhoto(photoDataUrl);
+  if (!check.ok) return { error: check.error };
+
+  if (!(await checkRateLimit("photo-update", session.employeeId, { limit: 5, windowMs: 60 * 1000 }))) {
+    return { error: "Trop de modifications. Réessayez dans une minute." };
+  }
+
+  // La photo est stockée chiffrée dans le profil : la nouvelle valeur remplace l'ancienne.
+  await prisma.employee.update({
+    where: { id: session.employeeId },
+    data: { photoUrl: encryptDataUrl(photoDataUrl) },
+  });
+
+  await logAudit({
+    orgId: session.orgId,
+    userId: session.userId,
+    action: "profile.photo_updated",
+    entityType: "Employee",
+    entityId: session.employeeId,
+  });
+
+  revalidatePath("/espace/compte");
   return { success: true };
 }
