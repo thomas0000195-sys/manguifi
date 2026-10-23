@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { recordHeartbeat } from "@/lib/console/heartbeat";
+import { logError } from "@/lib/console/errors";
 import { checkCronAuth } from "@/lib/cron-auth";
 import { put, list, del } from "@vercel/blob";
 
@@ -34,7 +36,7 @@ export const dynamic = "force-dynamic";
  * Vercel Cron (vercel.json) sends the Authorization header itself when
  * CRON_SECRET is defined in the project's environment variables.
  */
-export async function GET(req: NextRequest) {
+async function runBackup(req: NextRequest) {
   const auth = checkCronAuth(req.headers.get("authorization"));
   if (auth === "unconfigured") {
     return NextResponse.json(
@@ -127,4 +129,20 @@ async function purgeOldBackups(): Promise<string[]> {
   } while (cursor);
 
   return deleted;
+}
+
+/** Enregistre le passage de la tâche (santé du système). La logique ci-dessus est inchangée. */
+export async function GET(req: NextRequest) {
+  const started = Date.now();
+  try {
+    const res = await runBackup(req);
+    await recordHeartbeat("backup", res.ok ? "ok" : "error", Date.now() - started, res.ok ? undefined : "HTTP " + res.status);
+    if (!res.ok) await logError({ severity: "error", source: "cron", message: "Tâche backup en échec (HTTP " + res.status + ")", route: req.nextUrl.pathname });
+    return res;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "erreur inconnue";
+    await recordHeartbeat("backup", "error", Date.now() - started, message);
+    await logError({ severity: "critical", source: "cron", message: "Tâche backup interrompue : " + message, route: req.nextUrl.pathname });
+    throw err;
+  }
 }

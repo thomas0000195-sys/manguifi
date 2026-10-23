@@ -53,6 +53,22 @@ export async function verifyConsoleCodeAction(_prev: ConsoleStep, formData: Form
 
   await setPreAuth(user.id);
 
+  // Second facteur désactivable uniquement par une variable d'environnement explicite.
+  // Par défaut il reste obligatoire. À ne jamais mettre en production.
+  if (process.env.CONSOLE_TOTP_REQUIRED === "false") {
+    await clearPreAuth();
+    await setConsoleSession(user.id);
+    await logAudit({
+      orgId: user.orgId,
+      userId: user.id,
+      action: "console.login",
+      entityType: "User",
+      entityId: user.id,
+      details: "second facteur désactivé par configuration",
+    });
+    redirect("/console");
+  }
+
   if (user.totpEnabledAt && user.totpSecret) {
     return { step: "totp", email };
   }

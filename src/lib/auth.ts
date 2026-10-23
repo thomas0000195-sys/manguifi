@@ -95,9 +95,16 @@ export async function getSession(): Promise<SessionPayload | null> {
   // y compris pour les actions serveur qui n'appellent que requireSession().
   const account = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { passwordHash: true, employee: { select: { status: true } } },
+    select: {
+      passwordHash: true,
+      blockedAt: true,
+      employee: { select: { status: true } },
+      org: { select: { suspendedAt: true } },
+    },
   });
   if (!account) return null;
+  // Console V1 : compte bloqué ou entreprise suspendue = aucune session utilisable.
+  if (account.blockedAt || account.org?.suspendedAt) return null;
   if (!session.cv || session.cv !== credentialFingerprint(account.passwordHash)) return null;
   if (account.employee && account.employee.status !== "ACTIF") return null;
   if (session.role === "EMPLOYEE" && !account.employee) return null;
