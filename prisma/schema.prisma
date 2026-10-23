@@ -10,6 +10,8 @@ enum Role {
   ADMIN
   RESPONSABLE
   EMPLOYEE
+  // Propriétaire de la plateforme : créé uniquement en base (scripts/create-super-admin.ts).
+  SUPER_ADMIN
 }
 
 enum EmployeeStatus {
@@ -204,6 +206,9 @@ model User {
   termsAcceptedAt DateTime?
   termsVersion    String?
   employeeId   String?  @unique
+  // Second facteur de la console (TOTP). Chiffré au repos, comme les autres secrets.
+  totpSecret   String?
+  totpEnabledAt DateTime?
   employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
