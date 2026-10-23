@@ -6,9 +6,48 @@ import toast from "react-hot-toast";
 import { updateMyPhotoAction } from "@/app/actions/company";
 import { Camera, Loader2 } from "lucide-react";
 
-const MAX_BYTES = 3 * 1024 * 1024;
+const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SIDE = 800;
+const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 
-/** L'employé ajoute ou remplace sa photo de profil depuis son compte. */
+/**
+ * Recadre au centre en carré, réduit à 800 px maximum, puis encode en JPEG.
+ * La qualité baisse jusqu'à passer sous 2 Mo.
+ */
+async function compressToSquareJpeg(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Image illisible."));
+      el.src = url;
+    });
+
+    const side = Math.min(img.naturalWidth, img.naturalHeight);
+    const sx = (img.naturalWidth - side) / 2;
+    const sy = (img.naturalHeight - side) / 2;
+    const size = Math.min(MAX_SIDE, side);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Traitement d'image indisponible.");
+    ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+
+    for (let quality = 0.85; quality >= 0.4; quality -= 0.1) {
+      const dataUrl = canvas.toDataURL("image/jpeg", quality);
+      const bytes = Math.floor(((dataUrl.split(",")[1] ?? "").length * 3) / 4);
+      if (bytes <= MAX_OUTPUT_BYTES) return dataUrl;
+    }
+    throw new Error("La photo reste trop lourde après compression. Choisissez une image plus simple.");
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** L'employé ajoute ou remplace sa photo de profil depuis son compte. Facultative. */
 export default function MyPhotoUpload({
   currentPhotoUrl,
   initials,
@@ -21,37 +60,38 @@ export default function MyPhotoUpload({
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Sélectionnez un fichier image.");
+    if (!ACCEPTED.includes(file.type)) {
+      toast.error("Format refusé : JPEG, PNG ou WebP uniquement.");
       return;
     }
-    if (file.size > MAX_BYTES) {
-      toast.error("La photo dépasse 3 Mo. Choisissez une image plus légère.");
+
+    let dataUrl: string;
+    try {
+      dataUrl = await compressToSquareJpeg(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Photo non traitée.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setPreview(dataUrl);
-      startTransition(async () => {
-        const res = await updateMyPhotoAction(dataUrl);
-        if (res.error) {
-          toast.error(res.error);
-          setPreview(currentPhotoUrl);
-          return;
-        }
-        toast.success("Photo mise à jour.");
-        router.refresh();
-      });
-    };
-    reader.readAsDataURL(file);
+
+    setPreview(dataUrl);
+    startTransition(async () => {
+      const res = await updateMyPhotoAction(dataUrl);
+      if (res.error) {
+        toast.error(res.error);
+        setPreview(currentPhotoUrl);
+        return;
+      }
+      toast.success("Photo mise à jour.");
+      router.refresh();
+    });
   }
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-5">
+    <div className="flex flex-col items-center gap-2">
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
@@ -69,11 +109,11 @@ export default function MyPhotoUpload({
           {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
         </span>
       </button>
-      <p className="text-xs text-muted">Votre photo de profil est facultative.</p>
+      <p className="text-xs text-muted">Photo facultative · JPEG, PNG ou WebP</p>
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         capture="user"
         className="hidden"
         onChange={handleFile}

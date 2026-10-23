@@ -36,3 +36,28 @@ test("masquage pour le journal : seuls les 3 derniers chiffres restent", () => {
   assert.equal(maskPhone("+221771234567"), "+221 ** *** 567");
   assert.equal(maskPhone("+221771234567").includes("1234"), false);
 });
+
+import { checkProfilePhoto } from "../src/lib/profile";
+
+test("photo : JPEG, PNG et WebP acceptés", () => {
+  for (const mime of ["jpeg", "png", "webp"]) {
+    assert.equal(checkProfilePhoto(`data:image/${mime};base64,QUJDREVGRw==`).ok, true, mime);
+  }
+});
+
+test("photo : GIF, SVG et texte refusés", () => {
+  for (const bad of [
+    "data:image/gif;base64,QUJDREVGRw==",
+    "data:image/svg+xml;base64,QUJDREVGRw==",
+    "data:text/html;base64,QUJDREVGRw==",
+    "QUJDREVGRw==",
+  ]) {
+    assert.equal(checkProfilePhoto(bad).ok, false, bad);
+  }
+});
+
+test("photo : plus de 2 Mo après compression refusée", () => {
+  const big = "A".repeat(Math.ceil((2.1 * 1024 * 1024 * 4) / 3));
+  const res = checkProfilePhoto(`data:image/jpeg;base64,${big}`);
+  assert.equal(res.ok, false);
+});

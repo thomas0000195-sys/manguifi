@@ -4,6 +4,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { checkProfilePhoto } from "@/lib/profile";
 import { encryptDataUrl, hashEmail } from "@/lib/crypto";
 import { hashPhone } from "@/lib/phone";
 import { generateMatricule } from "@/lib/matricule";
@@ -799,13 +801,15 @@ export async function updateMyPhotoAction(photoDataUrl: string): Promise<ActionS
     return { error: "Réservé aux comptes employé." };
   }
 
-  if (!photoDataUrl.startsWith("data:image/")) {
-    return { error: "Format d'image invalide." };
-  }
-  if (photoDataUrl.length > MAX_PHOTO_BYTES * 1.4) {
-    return { error: "La photo dépasse 3 Mo. Choisissez une image plus légère." };
+  // Contrôle du format et de la taille (2 Mo après compression) côté serveur.
+  const check = checkProfilePhoto(photoDataUrl);
+  if (!check.ok) return { error: check.error };
+
+  if (!(await checkRateLimit("photo-update", session.employeeId, { limit: 5, windowMs: 60 * 1000 }))) {
+    return { error: "Trop de modifications. Réessayez dans une minute." };
   }
 
+  // La photo est stockée chiffrée dans le profil : la nouvelle valeur remplace l'ancienne.
   await prisma.employee.update({
     where: { id: session.employeeId },
     data: { photoUrl: encryptDataUrl(photoDataUrl) },
@@ -814,7 +818,7 @@ export async function updateMyPhotoAction(photoDataUrl: string): Promise<ActionS
   await logAudit({
     orgId: session.orgId,
     userId: session.userId,
-    action: "UPDATE_MY_PHOTO",
+    action: "profile.photo_updated",
     entityType: "Employee",
     entityId: session.employeeId,
   });

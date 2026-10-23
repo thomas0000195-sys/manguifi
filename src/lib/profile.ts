@@ -24,3 +24,18 @@ export function formatSenegalMobile(e164: string): string {
 export function maskPhone(e164: string): string {
   return `+221 ** *** ${e164.slice(-3)}`;
 }
+
+const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+const PHOTO_PATTERN = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+\/=]+)$/;
+
+/**
+ * Contrôle serveur de la photo de profil : JPEG, PNG ou WebP, 2 Mo maximum
+ * après compression. Ne jamais se fier au navigateur seul.
+ */
+export function checkProfilePhoto(dataUrl: string): { ok: true } | { ok: false; error: string } {
+  const match = dataUrl.match(PHOTO_PATTERN);
+  if (!match) return { ok: false, error: "Format d'image invalide : JPEG, PNG ou WebP uniquement." };
+  const bytes = Math.floor((match[2].length * 3) / 4);
+  if (bytes > PHOTO_MAX_BYTES) return { ok: false, error: "La photo dépasse 2 Mo après compression." };
+  return { ok: true };
+}
