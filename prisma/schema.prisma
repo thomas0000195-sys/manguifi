@@ -441,6 +441,8 @@ model AuditLog {
   entityId   String
   details    String?
   createdAt  DateTime @default(now())
+
+  @@index([orgId, entityType, entityId, createdAt])
 }
 
 // Compteurs de limitation de débit partagés entre toutes les instances
