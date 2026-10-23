@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { prisma } from "./prisma";
 import { sendEmployeeOtpEmail } from "./email";
 import { hashEmail } from "./crypto";
+import { logError } from "./console/errors";
 
 const CODE_LENGTH = 6;
 const EXPIRY_MS = 10 * 60 * 1000;
@@ -45,6 +46,7 @@ export async function sendEmailOtp(email: string): Promise<SendEmailOtpResult> {
 
   const delivered = await sendEmployeeOtpEmail(email, code);
   if (!delivered) {
+    await logError({ severity: "error", source: "otp_email", message: "Envoi du code de connexion par e-mail échoué" });
     return { sent: false, error: "Impossible d'envoyer le code pour le moment. Réessayez dans un instant." };
   }
   return { sent: true };

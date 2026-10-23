@@ -10,6 +10,8 @@ enum Role {
   ADMIN
   RESPONSABLE
   EMPLOYEE
+  // Propriétaire de la plateforme : créé uniquement en base (scripts/create-super-admin.ts).
+  SUPER_ADMIN
 }
 
 enum EmployeeStatus {
@@ -82,6 +84,8 @@ model Organization {
   justificationDelayDays    Int      @default(3)
   onboardingCompleted       Boolean  @default(false)
   isDemo                    Boolean  @default(false)
+  // Console V1 : une entreprise suspendue ne peut ni se connecter ni pointer. Données conservées.
+  suspendedAt               DateTime?
   matriculePrefix           String   @default("MGF")
   employeeSequence          Int      @default(0)
   idNumberEnabled           Boolean  @default(false)
@@ -204,6 +208,11 @@ model User {
   termsAcceptedAt DateTime?
   termsVersion    String?
   employeeId   String?  @unique
+  // Second facteur de la console (TOTP). Chiffré au repos, comme les autres secrets.
+  totpSecret   String?
+  totpEnabledAt DateTime?
+  // Console V1 : compte bloqué par le super admin. Refuse toute session.
+  blockedAt    DateTime?
   employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
@@ -444,4 +453,31 @@ model RateLimitBucket {
   resetAt DateTime
 
   @@index([resetAt])
+}
+
+// Journal d'erreurs de la console (rétention 90 jours). Jamais de secret ni de code.
+model ErrorLog {
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
+  severity   String
+  source     String
+  message    String
+  route      String?
+  stack      String?
+  companyId  String?
+  userId     String?
+  status     String    @default("OPEN")
+  resolvedAt DateTime?
+  resolvedBy String?
+
+  @@index([createdAt, severity, status])
+}
+
+// Dernier passage de chaque tâche planifiée (santé du système).
+model SystemHeartbeat {
+  jobName        String   @id
+  lastRunAt      DateTime
+  lastStatus     String
+  lastDurationMs Int
+  lastError      String?
 }

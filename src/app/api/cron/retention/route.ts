@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { recordHeartbeat } from "@/lib/console/heartbeat";
+import { logError } from "@/lib/console/errors";
 import { checkCronAuth } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +20,7 @@ export const dynamic = "force-dynamic";
  * Example (Windows Task Scheduler, weekly):
  *   curl -H "Authorization: Bearer %CRON_SECRET%" https://your-domain/api/cron/retention
  */
-export async function GET(req: NextRequest) {
+async function runRetention(req: NextRequest) {
   const auth = checkCronAuth(req.headers.get("authorization"));
   if (auth === "unconfigured") {
     return NextResponse.json(
@@ -58,4 +60,20 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, processedOrgs: results.length, results });
+}
+
+/** Enregistre le passage de la tâche (santé du système). La logique ci-dessus est inchangée. */
+export async function GET(req: NextRequest) {
+  const started = Date.now();
+  try {
+    const res = await runRetention(req);
+    await recordHeartbeat("retention", res.ok ? "ok" : "error", Date.now() - started, res.ok ? undefined : "HTTP " + res.status);
+    if (!res.ok) await logError({ severity: "error", source: "cron", message: "Tâche retention en échec (HTTP " + res.status + ")", route: req.nextUrl.pathname });
+    return res;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "erreur inconnue";
+    await recordHeartbeat("retention", "error", Date.now() - started, message);
+    await logError({ severity: "critical", source: "cron", message: "Tâche retention interrompue : " + message, route: req.nextUrl.pathname });
+    throw err;
+  }
 }
