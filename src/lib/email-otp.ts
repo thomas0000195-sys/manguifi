@@ -2,14 +2,21 @@ import crypto from "node:crypto";
 import { prisma } from "./prisma";
 import { sendEmployeeOtpEmail } from "./email";
 import { hashEmail } from "./crypto";
+import { getEncryptionSecret } from "./secrets";
 import { logError } from "./console/errors";
 
 const CODE_LENGTH = 6;
 const EXPIRY_MS = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
-function hashCode(code: string): string {
-  return crypto.createHash("sha256").update(code).digest("hex");
+/**
+ * HMAC-SHA256 avec une clé dérivée de ENCRYPTION_KEY (contexte dédié). Un code
+ * à 6 chiffres ne peut donc pas être retrouvé par force brute hors ligne à
+ * partir de la base seule, et le code est lié à l'adresse concernée.
+ */
+function hashCode(emailHash: string, code: string): string {
+  const key = crypto.hkdfSync("sha256", getEncryptionSecret(), "", "manguifi-email-otp-v1", 32);
+  return crypto.createHmac("sha256", Buffer.from(key)).update(`${emailHash}:${code}`).digest("hex");
 }
 
 function generateCode(): string {
@@ -39,7 +46,7 @@ export async function sendEmailOtp(email: string): Promise<SendEmailOtpResult> {
   await prisma.emailOtpCode.create({
     data: {
       emailHash,
-      codeHash: hashCode(code),
+      codeHash: hashCode(emailHash, code),
       expiresAt: new Date(Date.now() + EXPIRY_MS),
     },
   });
@@ -70,7 +77,7 @@ export async function checkEmailOtp(email: string, code: string): Promise<CheckE
     return { approved: false, error: "Trop de tentatives pour ce code. Demandez-en un nouveau." };
   }
 
-  if (!codeMatches(pending.codeHash, hashCode(code))) {
+  if (!codeMatches(pending.codeHash, hashCode(emailHash, code))) {
     await prisma.emailOtpCode.update({
       where: { id: pending.id },
       data: { attempts: { increment: 1 } },
