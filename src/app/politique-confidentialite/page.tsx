@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
       </Link>
 
       <h1 className="mt-4 text-2xl font-bold text-navy-950">Politique de confidentialité</h1>
-      <p className="mt-1 text-sm text-muted">Dernière mise à jour : {new Date().toLocaleDateString("fr-FR")}</p>
+      <p className="mt-1 text-sm text-muted">Dernière mise à jour : 24 octobre 2026</p>
 
       <div className="mt-6 space-y-6 text-sm leading-relaxed text-navy-900">
         <section>
@@ -29,8 +29,7 @@ export default function PrivacyPolicyPage() {
             d&apos;absence (photo ou scan de document) sont également
             stockés. Pour les employés, le numéro de téléphone sert aussi
             d&apos;identifiant de connexion via WhatsApp (code à usage
-            unique envoyé par l&apos;intermédiaire de notre prestataire
-            technique Twilio) — voir section 7.
+            unique envoyé par WhatsApp, via Meta) — voir section 7.
           </p>
         </section>
         <section>
@@ -99,12 +98,12 @@ export default function PrivacyPolicyPage() {
           <h2 className="font-semibold text-navy-950">7. Sous-traitants techniques</h2>
           <p className="mt-1.5 text-muted">
             Manguifi fait appel à des prestataires pour certaines fonctions
-            techniques : Twilio (envoi des codes de connexion par WhatsApp et
-            SMS) et Resend (envoi d&apos;emails de réinitialisation de mot de
-            passe). Ces prestataires ne reçoivent que les informations
-            strictement nécessaires à l&apos;envoi (numéro de téléphone ou
-            email, code à usage unique) et n&apos;ont pas accès au reste de
-            vos données.
+            techniques : Vercel (hébergement de l&apos;application), Neon
+            (base de données, États-Unis), Resend (envoi des e-mails de
+            connexion) et Meta/WhatsApp (envoi des codes de connexion par
+            WhatsApp). Ces prestataires ne reçoivent que les informations
+            strictement nécessaires à leur service et n&apos;ont pas accès
+            au reste de vos données.
           </p>
         </section>
         <section>
@@ -114,7 +113,8 @@ export default function PrivacyPolicyPage() {
             l&apos;administrateur de votre organisation sur Manguifi. Si votre
             demande concerne l&apos;administrateur lui-même ou n&apos;a pas
             trouvé de réponse satisfaisante, vous pouvez contacter
-            l&apos;éditeur de Manguifi à m.gomis@iwadaa.com.
+            l&apos;éditeur de Manguifi, Moise Thomas Lys Gomis, Liberté 6
+            Extension, Dakar, à m.gomis@iwadaa.com.
           </p>
         </section>
         <section>
