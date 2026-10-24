@@ -11,7 +11,7 @@ export default function TermsPage() {
       </Link>
 
       <h1 className="mt-4 text-2xl font-bold text-navy-950">Conditions générales d&apos;utilisation</h1>
-      <p className="mt-1 text-sm text-muted">Dernière mise à jour : {new Date().toLocaleDateString("fr-FR")}</p>
+      <p className="mt-1 text-sm text-muted">Dernière mise à jour : 24 octobre 2026</p>
 
       <div className="mt-6 space-y-6 text-sm leading-relaxed text-navy-900">
         <section>
