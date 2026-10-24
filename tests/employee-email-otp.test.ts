@@ -281,7 +281,9 @@ test("employé actif : un code à 6 chiffres est envoyé, stocké haché", async
   assert.match(code, /^\d{6}$/);
   assert.equal(db.otps.length, 1);
   assert.notEqual(db.otps[0].codeHash, code);
-  assert.equal(db.otps[0].codeHash, crypto.createHash("sha256").update(code).digest("hex"));
+  // HMAC avec clé dérivée : le hash n'est plus un SHA-256 simple du code (retrouvable hors ligne).
+  assert.match(db.otps[0].codeHash, /^[0-9a-f]{64}$/);
+  assert.notEqual(db.otps[0].codeHash, crypto.createHash("sha256").update(code).digest("hex"));
 });
 
 test("connexion légitime : bon code ouvre la session employé", async () => {
