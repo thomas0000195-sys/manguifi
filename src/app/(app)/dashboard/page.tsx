@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/guard";
+import GuideBubbles from "@/components/GuideBubbles";
 import { getDashboardData, getScopedTeamIds } from "@/lib/dashboard";
 import { minutesToLabel } from "@/lib/attendance-logic";
 import WeeklyTrendChart from "@/components/WeeklyTrendChart";
@@ -188,6 +189,11 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+      <GuideBubbles seen={!!user.guideSeenAt} steps={[
+        { title: "Votre tableau de bord", text: "Les chiffres du jour se mettent à jour automatiquement." },
+        { title: "À traiter", text: "Les retards, oublis et demandes en attente sont regroupés pour vous aider à agir vite." },
+        { title: "Vos équipes", text: "Ajoutez vos employés et vos sites depuis le menu, puis partagez les QR codes." },
+      ]} />
     </div>
   );
 }

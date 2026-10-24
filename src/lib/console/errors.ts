@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export type ErrorSeverity = "info" | "warning" | "error" | "critical";
-export type ErrorSource = "api" | "client" | "cron" | "otp_email" | "otp_whatsapp" | "pointage";
+export type ErrorSource = "api" | "client" | "cron" | "otp_email" | "otp_whatsapp" | "pointage" | "notification";
 
 const EMAIL = /[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+/g;
 const PHONE = /\+?\d[\d\s]{7,}\d/g;

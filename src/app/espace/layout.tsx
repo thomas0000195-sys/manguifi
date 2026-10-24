@@ -1,9 +1,10 @@
 import { requireUser } from "@/lib/guard";
 import { decryptDataUrlForDisplay } from "@/lib/crypto";
 import Link from "next/link";
-import { QrCode, Home, History, FileCheck2, LogOut, UserCircle } from "lucide-react";
-import { logoutAction } from "@/app/actions/auth";
+import { QrCode, Home, History, FileCheck2, UserCircle } from "lucide-react";
 import InstallPrompt from "@/components/InstallPrompt";
+import ThemeApplier from "@/components/ThemeApplier";
+import NotificationBell from "@/components/NotificationBell";
 import TermsBanner from "@/components/TermsBanner";
 import { CURRENT_TERMS_VERSION } from "@/lib/terms";
 
@@ -20,17 +21,14 @@ export default async function EspaceLayout({ children }: { children: React.React
           <span className="font-semibold text-navy-900">Manguifi</span>
         </div>
         <div className="flex items-center gap-3">
+          <NotificationBell userId={user.id} href="/espace/notifications" />
           <Link href="/espace/compte" className="text-muted hover:text-navy-900" title="Mon compte">
             <UserCircle className="h-5 w-5" />
           </Link>
-          <form action={logoutAction}>
-            <button className="flex items-center gap-1.5 text-xs font-medium text-muted hover:text-red-600">
-              <LogOut className="h-3.5 w-3.5" /> Déconnexion
-            </button>
-          </form>
         </div>
       </header>
 
+      <ThemeApplier />
       <InstallPrompt />
 
       {user.org.isDemo && (

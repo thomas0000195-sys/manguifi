@@ -110,3 +110,37 @@ body {
 .animate-check-pop {
   animation: check-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* Thème sombre (choix de l'utilisateur, appliqué par ThemeApplier). */
+html[data-theme="sombre"] {
+  color-scheme: dark;
+  --background: #0b1324;
+  --surface: #131d33;
+  --foreground: #f1f5f9;
+  --muted: #a3b1c6;
+  --border: #2a3a5c;
+  --navy-950: #f8fafc;
+  --navy-900: #e2e8f0;
+  --navy-800: #cbd5e1;
+  --navy-700: #b6c2d4;
+  --navy-600: #94a3b8;
+  --navy-500: #64748b;
+  --navy-100: #1e2b47;
+  --navy-50: #17233c;
+}
+
+/* Boutons principaux : fond bleu pour garder le texte blanc lisible en mode sombre. */
+html[data-theme="sombre"] .bg-navy-900 {
+  background-color: #2563eb;
+}
+html[data-theme="sombre"] .hover\:bg-navy-800:hover {
+  background-color: #1d4ed8;
+}
+
+/* Taille du texte (choix de l'utilisateur). Les tailles Tailwind étant en rem, elles suivent ce réglage. */
+html[data-taille="grand"] {
+  font-size: 112.5%;
+}
+html[data-taille="tres-grand"] {
+  font-size: 125%;
+}

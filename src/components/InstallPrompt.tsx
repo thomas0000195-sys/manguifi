@@ -8,7 +8,8 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const DISMISS_KEY = "manguifi_install_dismissed";
+export const INSTALL_DISMISS_KEY = "manguifi_install_dismissed";
+const DISMISS_KEY = INSTALL_DISMISS_KEY;
 
 function isStandalone() {
   if (typeof window === "undefined") return false;
@@ -21,6 +22,13 @@ function isStandalone() {
 function isIos() {
   if (typeof window === "undefined") return false;
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+}
+
+/** Safari seulement : Chrome, Firefox ou Edge sur iPhone n'installent pas l'application. */
+function isSafari() {
+  if (typeof window === "undefined") return false;
+  const ua = window.navigator.userAgent;
+  return /safari/i.test(ua) && !/crios|fxios|edgios|opr\//i.test(ua);
 }
 
 export default function InstallPrompt() {
@@ -37,7 +45,8 @@ export default function InstallPrompt() {
     setDismissed(false);
 
     if (isIos()) {
-      setShowIosTip(true);
+      // Sur iPhone, l'installation n'est possible que depuis Safari.
+      if (isSafari()) setShowIosTip(true);
       return;
     }
 

@@ -11,13 +11,12 @@ import {
   FileCheck2,
   BarChart3,
   Settings,
-  LogOut,
   QrCode,
   Menu,
   X,
 } from "lucide-react";
 import { useState } from "react";
-import { logoutAction } from "@/app/actions/auth";
+import LogoutButton from "@/components/LogoutButton";
 import InstallPrompt from "./InstallPrompt";
 import TermsBanner from "./TermsBanner";
 
@@ -41,12 +40,14 @@ export default function AppShell({
   role,
   isDemo,
   termsAccepted,
+  bell,
 }: {
   children: React.ReactNode;
   orgName: string;
   userEmail: string | null;
   role: string;
   isDemo?: boolean;
+  bell?: React.ReactNode;
   termsAccepted: boolean;
 }) {
   const pathname = usePathname();
@@ -90,11 +91,8 @@ export default function AppShell({
               {role === "ADMIN" ? "Administrateur" : "Responsable"}
             </span>
           </div>
-          <form action={logoutAction}>
-            <button className="flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium text-muted transition hover:bg-red-50 hover:text-red-600">
-              <LogOut className="h-4 w-4" /> Déconnexion
-            </button>
-          </form>
+          {bell}
+          <LogoutButton />
         </div>
       </aside>
 
@@ -106,12 +104,15 @@ export default function AppShell({
             </div>
             <span className="font-semibold text-navy-900">Manguifi</span>
           </div>
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="rounded-lg p-2 text-navy-900 hover:bg-navy-50"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {bell}
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="rounded-lg p-2 text-navy-900 hover:bg-navy-50"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </div>
         </header>
 
         {mobileOpen && (
@@ -147,11 +148,9 @@ export default function AppShell({
                   </Link>
                 ))}
               </nav>
-              <form action={logoutAction} className="mt-4 border-t border-border pt-4">
-                <button className="flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50">
-                  <LogOut className="h-4 w-4" /> Déconnexion
-                </button>
-              </form>
+              <div className="mt-4 border-t border-border pt-4">
+                <LogoutButton />
+              </div>
             </div>
           </div>
         )}

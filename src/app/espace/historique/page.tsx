@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/guard";
 import { prisma } from "@/lib/prisma";
 import { minutesToLabel } from "@/lib/attendance-logic";
 import { History } from "lucide-react";
+import EmptyState from "@/components/ui/EmptyState";
 
 export default async function HistoriquePage() {
   const user = await requireUser(["EMPLOYEE"]);
@@ -26,10 +27,11 @@ export default async function HistoriquePage() {
       <p className="text-sm text-muted">Vos arrivées, départs et heures travaillées.</p>
 
       {attendances.length === 0 ? (
-        <div className="mt-10 rounded-2xl border border-dashed border-border bg-surface py-16 text-center">
-          <History className="mx-auto h-10 w-10 text-muted" />
-          <p className="mt-3 text-sm text-muted">Aucun pointage pour le moment.</p>
-        </div>
+        <EmptyState
+          icon={History}
+          title="Aucun pointage pour le moment. Scannez le QR de votre site pour commencer."
+          action={{ label: "Scanner le QR code", href: "/espace/scanner" }}
+        />
       ) : (
         <div className="mt-5 space-y-5">
           {[...grouped.entries()].map(([day, items]) => {

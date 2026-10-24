@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import toast from "react-hot-toast";
 import { submitJustificatifAction } from "@/app/actions/justificatif";
 import { Plus, X, Loader2, FileCheck2, Paperclip } from "lucide-react";
+import EmptyState from "@/components/ui/EmptyState";
 
 const MOTIFS = [
   { v: "MALADIE", l: "Maladie" },
@@ -82,10 +83,11 @@ export default function JustificatifsEmployeClient({
       </div>
 
       {justificatifs.length === 0 ? (
-        <div className="mt-10 rounded-2xl border border-dashed border-border bg-surface py-16 text-center">
-          <FileCheck2 className="mx-auto h-10 w-10 text-muted" />
-          <p className="mt-3 text-sm text-muted">Aucun justificatif envoyé.</p>
-        </div>
+        <EmptyState
+          icon={FileCheck2}
+          title="Aucun justificatif envoyé. Déposez un document si vous avez été absent."
+          action={{ label: "Déposer un justificatif", onClick: () => setShow(true) }}
+        />
       ) : (
         <div className="mt-5 space-y-3">
           {justificatifs.map((j) => {

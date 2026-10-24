@@ -7,6 +7,9 @@ import { ArrowLeft } from "lucide-react";
 import MyDataPanel from "./MyDataPanel";
 import MyPhotoUpload from "./MyPhotoUpload";
 import MyProfileForm from "./MyProfileForm";
+import AppearancePanel from "@/components/AppearancePanel";
+import InstallGuideButton from "@/components/InstallGuideButton";
+import LogoutButton from "@/components/LogoutButton";
 
 const DAYS = [
   { v: 1, l: "Lun" },
@@ -59,6 +62,10 @@ export default async function MonComptePage() {
           <p className="truncate text-lg font-bold text-navy-950">{fullName || "Mon compte"}</p>
           {emp?.position && <p className="truncate text-sm text-muted">{emp.position}</p>}
           {emp && <p className="font-mono text-xs text-navy-800">{emp.matricule}</p>}
+          <p className="truncate text-xs text-muted">
+            {user.org.name}
+            {details ? ` · ${details.team.site.name}` : ""}
+          </p>
         </div>
       </div>
 
@@ -101,8 +108,22 @@ export default async function MonComptePage() {
         </p>
       </div>
 
+      <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
+        <AppearancePanel />
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-border bg-surface p-5">
+        <h2 className="mb-3 text-sm font-semibold text-navy-950">Installer l&apos;application</h2>
+        <p className="mb-3 text-xs text-muted">Pour ouvrir Manguifi comme une application, depuis l&apos;écran d&apos;accueil.</p>
+        <InstallGuideButton />
+      </div>
+
       <div className="mt-6">
         <MyDataPanel />
+      </div>
+
+      <div className="mt-8 border-t border-border pt-6">
+        <LogoutButton employee />
       </div>
     </div>
   );

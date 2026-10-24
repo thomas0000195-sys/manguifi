@@ -103,6 +103,7 @@ model Organization {
   schedules     Schedule[]
   attendances   Attendance[]
   justificatifs Justificatif[]
+  notifications Notification[]
   auditLogs     AuditLog[]
   overtimes     OvertimeRecord[]
   workSchedules WorkSchedule[]
@@ -213,12 +214,15 @@ model User {
   totpEnabledAt DateTime?
   // Console V1 : compte bloqué par le super admin. Refuse toute session.
   blockedAt    DateTime?
+  // Guide de premier lancement vu (null = à afficher). Lot 1.8.
+  guideSeenAt  DateTime?
   employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
   responsableTeams ResponsableTeam[]
   responsableSites ResponsableSite[]
   auditLogs        AuditLog[]
+  notifications    Notification[]
   reviewedJustificatifs Justificatif[] @relation("ReviewedBy")
   correctedAttendances  Attendance[]   @relation("CorrectedBy")
   validatedOvertimes    OvertimeRecord[] @relation("ValidatedBy")
@@ -482,4 +486,23 @@ model SystemHeartbeat {
   lastStatus     String
   lastDurationMs Int
   lastError      String?
+}
+
+/// Notification dans l'application (lot 1.9). Titre et corps courts, sans donnée sensible :
+/// le détail se trouve derrière le lien.
+model Notification {
+  id        String    @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([createdAt])
 }

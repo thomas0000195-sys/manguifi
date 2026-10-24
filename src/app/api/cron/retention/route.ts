@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { recordHeartbeat } from "@/lib/console/heartbeat";
 import { logError } from "@/lib/console/errors";
 import { checkCronAuth } from "@/lib/cron-auth";
+import { purgeOldNotifications } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,10 @@ async function runRetention(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ ok: true, processedOrgs: results.length, results });
+  // Notifications : purge après la durée de rétention (lot 1.9), indépendante des réglages des entreprises.
+  const purgedNotifications = await purgeOldNotifications();
+
+  return NextResponse.json({ ok: true, processedOrgs: results.length, results, purgedNotifications });
 }
 
 /** Enregistre le passage de la tâche (santé du système). La logique ci-dessus est inchangée. */

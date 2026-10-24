@@ -5,6 +5,8 @@ import Link from "next/link";
 import { QrCode, Clock, AlertTriangle, FileClock } from "lucide-react";
 import ManualDepartureButton from "./ManualDepartureButton";
 import AutoRefresh from "@/components/AutoRefresh";
+import GuideBubbles from "@/components/GuideBubbles";
+import StatusBadge, { type StatusKey } from "@/components/ui/StatusBadge";
 
 export default async function EspacePage() {
   const user = await requireUser(["EMPLOYEE"]);
@@ -42,16 +44,18 @@ export default async function EspacePage() {
     where: { employeeId: employee.id, status: "EN_ATTENTE" },
   });
 
-  const statusLabel: Record<string, { text: string; color: string }> = {
-    PRESENT: { text: "Vous êtes pointé", color: "text-green-600 bg-green-50" },
-    RETARD: { text: "Arrivée en retard", color: "text-orange-600 bg-orange-50" },
-    DEPART_ANTICIPE: { text: "Départ anticipé", color: "text-orange-600 bg-orange-50" },
-    OUBLI_DEPART: { text: "Départ non pointé hier", color: "text-red-500 bg-red-50" },
-    ABSENT_NON_JUSTIFIE: { text: "Pas encore pointé", color: "text-muted bg-navy-50" },
-    NON_PLANIFIE: { text: "Pas encore pointé", color: "text-muted bg-navy-50" },
-    REPOS_PLANIFIE: { text: "Jour de repos planifié", color: "text-navy-700 bg-navy-50" },
-  };
-  const s = statusLabel[status.status] ?? statusLabel.NON_PLANIFIE;
+  const statusKey: StatusKey =
+    (
+      {
+        PRESENT: "PRESENT",
+        RETARD: "EN_RETARD",
+        DEPART_ANTICIPE: "DEPART_ANTICIPE",
+        OUBLI_DEPART: "SORTIE_MANQUANTE",
+        ABSENT_NON_JUSTIFIE: "NON_POINTE",
+        NON_PLANIFIE: "NON_POINTE",
+        REPOS_PLANIFIE: "REPOS",
+      } as const
+    )[status.status as "PRESENT"] ?? "NON_POINTE";
 
   return (
     <div className="mx-auto max-w-md px-5 py-6">
@@ -63,11 +67,11 @@ export default async function EspacePage() {
         {today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
       </h1>
 
-      <div className={`mt-4 rounded-2xl px-4 py-3 text-sm font-medium ${s.color}`}>
-        {s.text}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <StatusBadge status={statusKey} />
         {status.arrivee && (
-          <span className="ml-1 font-normal">
-            · Arrivée à {status.arrivee.timestamp.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+          <span className="text-sm text-muted">
+            Arrivée à {status.arrivee.timestamp.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
           </span>
         )}
       </div>
@@ -115,6 +119,11 @@ export default async function EspacePage() {
           {anomalies} anomalie(s) récente(s) à régulariser avec votre responsable.
         </Link>
       )}
+      <GuideBubbles seen={!!user.guideSeenAt} steps={[
+        { title: "Pointer, c’est simple", text: "Scannez le QR code affiché sur votre site pour pointer votre arrivée et votre départ." },
+        { title: "Votre historique", text: "Retrouvez vos pointages et vos heures dans l’onglet Historique." },
+        { title: "Besoin d’aide ?", text: "Votre responsable peut vous aider. Vous pouvez aussi retrouver votre compte dans Mon compte." },
+      ]} />
     </div>
   );
 }
