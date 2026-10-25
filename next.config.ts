@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
   // every Vercel build, so this only applies to self-hosted (Docker) builds.
   ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
 
+  // Fichiers de liaison de domaine (Android et iOS) : réécriture interne, sans redirection.
+  async rewrites() {
+    return [
+      { source: "/.well-known/assetlinks.json", destination: "/api/well-known/assetlinks" },
+      { source: "/.well-known/apple-app-site-association", destination: "/api/well-known/apple-app-site-association" },
+    ];
+  },
+
   async headers() {
     return [
       {
