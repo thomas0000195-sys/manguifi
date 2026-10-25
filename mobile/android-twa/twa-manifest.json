@@ -1,0 +1,39 @@
+{
+  "packageId": "tech.manguifi.app",
+  "host": "www.manguifi.tech",
+  "name": "Manguifi",
+  "launcherName": "Manguifi",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#0b1a36",
+  "navigationColor": "#0b1a36",
+  "navigationColorDark": "#0b1a36",
+  "navigationDividerColor": "#0b1a36",
+  "navigationDividerColorDark": "#0b1a36",
+  "backgroundColor": "#f4f6fb",
+  "enableNotifications": false,
+  "startUrl": "/?source=twa",
+  "iconUrl": "https://www.manguifi.tech/icons/icon-512",
+  "maskableIconUrl": "https://www.manguifi.tech/icons/icon-maskable-512",
+  "monochromeIconUrl": "",
+  "splashScreenFadeOutDuration": 300,
+  "webManifestUrl": "https://www.manguifi.tech/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "generatorApp": "bubblewrap-cli",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "signingKeyInfo": {
+    "path": "./keys/upload.jks",
+    "alias": "manguifi-upload"
+  },
+  "features": {
+    "locationDelegation": { "enabled": false }
+  },
+  "shortcuts": [],
+  "isChromeOSOnly": false,
+  "isMetaQuestOnly": false,
+  "enableSiteSettingsShortcut": true,
+  "minSdkVersion": 21,
+  "targetSdkVersion": 35,
+  "fingerprints": []
+}

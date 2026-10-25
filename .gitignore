@@ -61,3 +61,8 @@ next-env.d.ts
 *.mobileprovision
 google-services.json
 GoogleService-Info.plist
+
+# Projet Android : la clé d'envoi reste hors du dépôt
+mobile/android-twa/keys/
+mobile/android-twa/android/
+mobile/android-twa/app-release-*.aab
