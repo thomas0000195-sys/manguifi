@@ -99,7 +99,7 @@ export default function AppShell({
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-border bg-surface px-4 py-3 lg:hidden">
+        <header className="safe-top flex items-center justify-between border-b border-border bg-surface px-4 py-3 lg:hidden">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-900 text-white">
               <QrCode className="h-4 w-4" />
@@ -168,7 +168,7 @@ export default function AppShell({
 
         {!termsAccepted && <TermsBanner />}
 
-        <nav className="fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-surface/95 backdrop-blur lg:hidden">
+        <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-30 grid grid-cols-5 border-t border-border bg-surface/95 backdrop-blur lg:hidden">
           {mobileItems.map((item) => {
             const active = pathname.startsWith(item.href);
             return (

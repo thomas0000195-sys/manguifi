@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import PwaRegister from "@/components/PwaRegister";
+import NativeContextApplier from "@/components/NativeContextApplier";
 
 // Rendu dynamique : chaque page reçoit un nonce CSP (src/proxy.ts).
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
+  viewportFit: "cover",
   themeColor: "#0b1a36",
 };
 
@@ -37,6 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
         <PwaRegister />
+        <NativeContextApplier />
         <Toaster
           position="top-center"
           toastOptions={{

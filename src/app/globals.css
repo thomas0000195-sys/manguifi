@@ -110,3 +110,20 @@ body {
 .animate-check-pop {
   animation: check-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
+
+/* Zones de sécurité (encoche, barre d'accueil). Sans effet sur un navigateur classique : env() vaut 0. */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Application des stores : pas de défilement élastique de la page entière. */
+html[data-store="1"],
+html[data-store="1"] body {
+  overscroll-behavior: none;
+}
+html[data-store="1"] .store-hide {
+  display: none;
+}
