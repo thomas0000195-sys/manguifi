@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { recordPunchAction, type PunchResult } from "@/app/actions/attendance";
 import { getDeviceFingerprint } from "@/lib/device";
 import { parseSiteQrPayload } from "@/lib/qr";
+import { nativeHaptic } from "@/lib/native-haptics";
 import { queuePunch, getQueuedPunches, removeQueuedPunch } from "@/lib/offline-queue";
 import {
   CheckCircle2,
@@ -260,14 +261,20 @@ export default function ScannerClient({
         const res = await recordPunchAction(payload);
 
         if (res.error) {
-          if (hapticEnabled) navigator.vibrate?.([120, 60, 120]);
+          if (hapticEnabled) {
+            navigator.vibrate?.([120, 60, 120]);
+            void nativeHaptic("error");
+          }
           setResult(res);
           setPhase("result-error");
           processingRef.current = false;
           return;
         }
 
-        if (hapticEnabled) navigator.vibrate?.(220);
+        if (hapticEnabled) {
+          navigator.vibrate?.(220);
+          void nativeHaptic("success");
+        }
         playBeep();
         setResult(res);
         setPhase("result-ok");

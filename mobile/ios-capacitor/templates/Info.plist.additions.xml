@@ -1,0 +1,10 @@
+<!-- À ajouter dans ios/App/App/Info.plist (textes en français, honnêtes, à relire avec le juriste). -->
+<key>NSCameraUsageDescription</key>
+<string>Manguifi utilise la caméra pour scanner le QR code de votre lieu de travail et pour votre photo de profil.</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Manguifi vérifie que vous êtes sur votre lieu de travail au moment du pointage. Votre position n'est pas suivie en dehors du pointage.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>Pour choisir votre photo de profil.</string>
+<key>ITSAppUsesNonExemptEncryption</key>
+<false/>
+<!-- Pas de localisation en arrière-plan, pas de suivi publicitaire, pas d'ATT. -->
