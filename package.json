@@ -19,7 +19,8 @@
     "cap:android": "cap open android",
     "cap:ios": "cap open ios",
     "test:auth": "node --experimental-test-module-mocks --import tsx --test \"tests/*.test.ts\"",
-    "db:migrate": "prisma migrate deploy"
+    "db:migrate": "prisma migrate deploy",
+    "demo:reset": "node --env-file-if-exists=.env --import tsx scripts/demo-review-reset.ts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

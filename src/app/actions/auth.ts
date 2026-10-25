@@ -110,6 +110,12 @@ export async function loginAction(
     return { error: "Email ou mot de passe incorrect." };
   }
 
+  // Trace de toute connexion à l'entreprise de démonstration (revue des stores).
+  const org = await prisma.organization.findUnique({ where: { id: user.orgId }, select: { isDemo: true } });
+  if (org?.isDemo) {
+    await logAudit({ orgId: user.orgId, userId: user.id, action: "demo.login", entityType: "User", entityId: user.id });
+  }
+
   await createSession({
     userId: user.id,
     orgId: user.orgId,

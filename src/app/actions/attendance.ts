@@ -9,7 +9,7 @@ import {
   resolveShiftDate,
   startOfDay,
 } from "@/lib/attendance-logic";
-import { distanceInMeters } from "@/lib/geo";
+import { geofenceAnomaly } from "@/lib/geofence";
 import { encryptDataUrl, decryptDataUrlForDisplay } from "@/lib/crypto";
 import type { Employee, Organization, Site, Team } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -45,17 +45,11 @@ async function performPunch(
   let anomalyType: string | null = null;
   let anomalyMessage: string | undefined;
 
-  if (site.latitude == null || site.longitude == null) {
+  const geo = geofenceAnomaly({ isDemo: org.isDemo, site, latitude: input.latitude, longitude: input.longitude });
+  if (geo) {
     isAnomaly = true;
-    anomalyType = "SITE_NON_GEOLOCALISE";
-    anomalyMessage = "Ce site n'a pas encore de coordonnées GPS configurées — demandez à votre administrateur de les renseigner.";
-  } else {
-    const distance = distanceInMeters(input.latitude, input.longitude, site.latitude, site.longitude);
-    if (distance > site.radiusMeters) {
-      isAnomaly = true;
-      anomalyType = "HORS_ZONE_GEOGRAPHIQUE";
-      anomalyMessage = `Pointage à ${Math.round(distance)} m du site (zone autorisée : ${site.radiusMeters} m).`;
-    }
+    anomalyType = geo.type;
+    anomalyMessage = geo.message;
   }
 
   if (org.allowedTimeWindowEnabled && org.allowedTimeWindowStart && org.allowedTimeWindowEnd) {
