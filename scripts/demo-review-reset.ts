@@ -52,6 +52,18 @@ async function main() {
     employees.push(emp);
   }
 
+  // Garde-fou : une adresse de démo ne doit jamais appartenir à une entreprise réelle,
+  // sinon le compte serait déplacé dans la démo.
+  for (const email of [DEMO_ADMIN_EMAIL, DEMO_EMPLOYEE_EMAIL]) {
+    const existing = await prisma.user.findUnique({
+      where: { emailHash: hashEmail(email) },
+      include: { org: { select: { isDemo: true } } },
+    });
+    if (existing && !existing.org.isDemo) {
+      throw new Error("Une adresse de démo appartient déjà à une entreprise réelle : arrêt, rien n'a été modifié.");
+    }
+  }
+
   // Compte admin de démo : e-mail fictif (domaine réservé), mot de passe renouvelé à chaque lancement.
   const adminPassword = randomPassword();
   const employeePassword = randomPassword();
