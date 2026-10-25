@@ -6,13 +6,15 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Manguifi",
     description:
       "Pointage du personnel par QR code de site et géolocalisation, sans badgeuse physique.",
-    start_url: "/",
+    id: "/",
+    start_url: "/?source=pwa",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
     background_color: "#f4f6fb",
     theme_color: "#0b1a36",
     lang: "fr",
+    dir: "ltr",
     categories: ["business", "productivity"],
     icons: [
       { src: "/icons/icon-192", sizes: "192x192", type: "image/png", purpose: "any" },

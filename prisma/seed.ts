@@ -33,6 +33,12 @@ function rand(min: number, max: number) {
 }
 
 async function main() {
+  // Ce script EFFACE toutes les données de la base (entreprises, employés, pointages, comptes).
+  // Il ne doit jamais tourner sur la production. Confirmation explicite obligatoire.
+  if (process.env.ALLOW_DESTRUCTIVE_SEED !== "yes-erase-everything") {
+    throw new Error("Seed refusé : ce script efface toute la base. Définir ALLOW_DESTRUCTIVE_SEED=yes-erase-everything pour le lancer (base de test uniquement).");
+  }
+
   // This script wipes every table before reseeding — running it against a
   // real deployment would destroy real customer data. It refuses to run
   // whenever NODE_ENV=production, no matter how it's invoked.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
+import { detectNativeContext } from "@/lib/native-context";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -29,6 +30,8 @@ export default function InstallPrompt() {
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
+    // Dans l'application des stores, pas d'invite d'installation.
+    if (detectNativeContext().isStoreApp) return;
     if (isStandalone()) return;
     if (localStorage.getItem(DISMISS_KEY) === "1") return;
     // Reads localStorage/matchMedia (external, not React state) once on

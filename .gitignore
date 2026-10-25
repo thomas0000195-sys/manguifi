@@ -52,3 +52,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Stores : clés de signature et fichiers Google/Apple (jamais dans le dépôt)
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# Projet Android : la clé d'envoi reste hors du dépôt
+mobile/android-twa/keys/
+mobile/android-twa/android/
+mobile/android-twa/app-release-*.aab
