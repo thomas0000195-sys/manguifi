@@ -54,7 +54,7 @@
     "zod": "4.6.6"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.5",
+    "@capacitor/assets": "^4.0.0",
     "@capacitor/cli": "8.6.0",
     "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "^4",
