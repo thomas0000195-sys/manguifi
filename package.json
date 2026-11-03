@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "8.5.3",
+    "@capacitor/cli": "8.6.0",
     "@electric-sql/pglite": "0.5.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -75,6 +75,9 @@
     "sharp@0.35.3": true
   },
   "overrides": {
-    "zod": "4.6.6"
+    "zod": "4.6.6",
+    "follow-redirects": "1.16.2",
+    "glob": "14.0.3",
+    "minimatch": "11.0.1"
   }
 }
