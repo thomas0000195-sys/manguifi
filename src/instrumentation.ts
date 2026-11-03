@@ -2,6 +2,12 @@
 // isn't set (local dev, or before the account described in SESSION_REPORT.md
 // is created) — Sentry.init() with dsn: undefined is a documented safe no-op.
 export async function register() {
+  // Paiement PayDunya : si PAYDUNYA_MODE est défini, toutes les clés doivent l'être (sinon démarrage refusé).
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { validatePaydunyaEnvAtStartup } = await import("@/lib/paydunya/config");
+    validatePaydunyaEnvAtStartup();
+  }
+
   if (!process.env.SENTRY_DSN) return;
 
   if (process.env.NEXT_RUNTIME === "nodejs") {

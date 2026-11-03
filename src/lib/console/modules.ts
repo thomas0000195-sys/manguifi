@@ -22,6 +22,7 @@ export const CONSOLE_MODULES: ConsoleModule[] = [
   { key: "errors", label: "Erreurs", href: "/console/erreurs", step: 3, roles: ["SUPER_ADMIN"] },
   { key: "audit", label: "Audit", href: "/console/audit", step: 2, roles: ["SUPER_ADMIN"] },
   { key: "health", label: "Santé", href: "/console/sante", step: 7, roles: ["SUPER_ADMIN"] },
+  { key: "paiements", label: "Paiements en ligne", href: "/console/paiements", step: 8, roles: ["SUPER_ADMIN"] },
 ];
 
 export function modulesFor(role: ConsoleRole): ConsoleModule[] {
