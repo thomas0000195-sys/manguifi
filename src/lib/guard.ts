@@ -7,7 +7,11 @@ export async function requireUser(allowedRoles?: Role[]) {
   const user = await getCurrentUser();
   if (!user) redirect("/connexion-employe");
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    redirect(user.role === "EMPLOYEE" ? "/espace" : "/dashboard");
+    // SUPER_ADMIN n'a pas accès au tableau de bord entreprise : sans cette
+    // branche, /dashboard le renvoie vers /dashboard (boucle de redirections).
+    redirect(
+      user.role === "EMPLOYEE" ? "/espace" : user.role === "SUPER_ADMIN" ? "/console" : "/dashboard"
+    );
   }
   return user;
 }

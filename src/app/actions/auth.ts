@@ -124,7 +124,9 @@ export async function loginAction(
     employeeId: user.employeeId,
   });
 
-  redirect(user.role === "EMPLOYEE" ? "/espace" : "/dashboard");
+  redirect(
+    user.role === "EMPLOYEE" ? "/espace" : user.role === "SUPER_ADMIN" ? "/console" : "/dashboard"
+  );
 }
 
 export async function logoutAction() {
