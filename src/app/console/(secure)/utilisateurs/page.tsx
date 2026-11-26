@@ -1,5 +1,6 @@
 import { searchUsers } from "@/lib/console/users";
 import BlockButton from "./BlockButton";
+import LibererTelephoneButton from "./LibererTelephoneButton";
 
 export default async function UsersPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const sp = await searchParams;
@@ -29,6 +30,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             {r.userId && (
               <div className="mt-3">
                 <BlockButton userId={r.userId} blocked={r.blocked} />
+                {r.blocked && <LibererTelephoneButton userId={r.userId} />}
               </div>
             )}
           </li>

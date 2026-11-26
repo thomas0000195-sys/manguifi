@@ -57,6 +57,42 @@ export async function setUserBlockedAction(_prev: ConsoleActionState, formData: 
   return { success: true };
 }
 
+/**
+ * Libère le numéro de téléphone d'un compte BLOQUÉ, pour qu'un nouveau compte
+ * puisse l'utiliser. Le compte, ses données et l'historique sont conservés :
+ * seuls phone et phoneHash sont effacés (sur le compte et sur la fiche employé).
+ * Refusé si le compte n'est pas bloqué : on ne retire jamais le numéro d'un
+ * compte actif. Tracé dans le journal d'audit.
+ */
+export async function libererTelephoneAction(_prev: ConsoleActionState, formData: FormData): Promise<ConsoleActionState> {
+  const admin = await requireConsoleUser();
+  const userId = String(formData.get("userId") ?? "");
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, orgId: true, role: true, blockedAt: true, phoneHash: true, employeeId: true },
+  });
+  if (!target) return { error: "Compte introuvable." };
+  if (target.role === "SUPER_ADMIN") return { error: "Le compte super admin n'est pas concerné." };
+  if (!target.blockedAt) return { error: "Bloquez d'abord le compte : on ne libère pas le numéro d'un compte actif." };
+  if (!target.phoneHash) return { error: "Aucun numéro n'est lié à ce compte." };
+
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: target.id }, data: { phone: null, phoneHash: null } }),
+    ...(target.employeeId
+      ? [prisma.employee.update({ where: { id: target.employeeId }, data: { phone: null, phoneHash: null } })]
+      : []),
+  ]);
+  await logAudit({
+    orgId: target.orgId,
+    userId: admin.id,
+    action: "console.phone_released",
+    entityType: "User",
+    entityId: target.id,
+  });
+  revalidatePath("/console/utilisateurs");
+  return { success: true };
+}
+
 export async function resolveErrorAction(_prev: ConsoleActionState, formData: FormData): Promise<ConsoleActionState> {
   const admin = await requireConsoleUser();
   const id = String(formData.get("errorId") ?? "");
