@@ -93,6 +93,35 @@ export async function libererTelephoneAction(_prev: ConsoleActionState, formData
   return { success: true };
 }
 
+/**
+ * Libère le téléphone d'une fiche employé SANS compte de connexion (pas de
+ * User lié). Ces fiches n'ont pas de bouton « Bloquer » : sans cette action,
+ * leur numéro ne peut plus être libéré depuis la console. Refusé si un compte
+ * de connexion est lié (il faut alors bloquer ce compte d'abord).
+ */
+export async function libererTelephoneEmployeAction(_prev: ConsoleActionState, formData: FormData): Promise<ConsoleActionState> {
+  const admin = await requireConsoleUser();
+  const employeeId = String(formData.get("employeeId") ?? "");
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    select: { id: true, orgId: true, phoneHash: true, user: { select: { id: true } } },
+  });
+  if (!employee) return { error: "Fiche introuvable." };
+  if (employee.user) return { error: "Cette fiche a un compte de connexion : bloquez d'abord ce compte, puis libérez le numéro depuis le compte." };
+  if (!employee.phoneHash) return { error: "Aucun numéro n'est lié à cette fiche." };
+
+  await prisma.employee.update({ where: { id: employee.id }, data: { phone: null, phoneHash: null } });
+  await logAudit({
+    orgId: employee.orgId,
+    userId: admin.id,
+    action: "console.phone_released_employee",
+    entityType: "Employee",
+    entityId: employee.id,
+  });
+  revalidatePath("/console/utilisateurs");
+  return { success: true };
+}
+
 export async function resolveErrorAction(_prev: ConsoleActionState, formData: FormData): Promise<ConsoleActionState> {
   const admin = await requireConsoleUser();
   const id = String(formData.get("errorId") ?? "");
