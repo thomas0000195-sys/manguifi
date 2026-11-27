@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { getAuthSecret } from "@/lib/secrets";
+import { CONSOLE_SESSION_MINUTES } from "@/lib/console/pricing";
 
 /**
  * Session de la console super admin, séparée des sessions de l'application :
@@ -10,7 +11,7 @@ import { getAuthSecret } from "@/lib/secrets";
 
 const CONSOLE_COOKIE = "manguifi_console";
 const PRE_AUTH_COOKIE = "manguifi_console_pre";
-const SESSION_MINUTES = 30;
+const SESSION_MINUTES = CONSOLE_SESSION_MINUTES;
 const PRE_AUTH_MINUTES = 5;
 const AUDIENCE_SESSION = "console";
 const AUDIENCE_PRE_AUTH = "console-pre";

@@ -96,6 +96,18 @@ model Organization {
   attendanceRetentionMonths Int?
   authChannel               AuthChannel @default(WHATSAPP)
 
+  // Console lot 1 : identité légale et contact (NINEA et RCCM de l'entreprise cliente).
+  legalName                 String?
+  ninea                     String?
+  rccm                      String?
+  address                   String?
+  contactPhone              String?
+  contactEmail              String?
+  sector                    String?
+  // Archivage réversible (jamais de suppression directe). Purge après 30 jours.
+  deletedAt                 DateTime?
+
+  subscription  Subscription?
   sites         Site[]
   teams         Team[]
   employees     Employee[]
@@ -440,9 +452,82 @@ model AuditLog {
   entityType String
   entityId   String
   details    String?
+  // Console lot 1 : état avant / après (JSON), IP et navigateur de l'auteur.
+  before     String?
+  after      String?
+  ip         String?
+  userAgent  String?
   createdAt  DateTime @default(now())
 
   @@index([orgId, entityType, entityId, createdAt])
+}
+
+enum PlanCode {
+  BASIC
+  EQUIPE
+  ESSENTIEL
+  PREMIUM
+  ENTREPRISE
+}
+
+enum BillingCycle {
+  MENSUEL
+  ANNUEL
+}
+
+enum SubscriptionStatus {
+  ESSAI
+  ACTIF
+  IMPAYE
+  SUSPENDU
+  RESILIE
+  EXPIRE
+}
+
+enum PaymentMethod {
+  WAVE
+  ORANGE_MONEY
+  VIREMENT
+  ESPECES
+  PAYDUNYA
+}
+
+/// Abonnement d'une entreprise. Une entreprise sans ligne n'est pas encore
+/// configurée : elle garde l'accès d'origine (pas de limite, pas d'expiration).
+model Subscription {
+  id                  String             @id @default(cuid())
+  orgId               String             @unique
+  org                 Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan                PlanCode
+  billingCycle        BillingCycle       @default(MENSUEL)
+  priceApplied        Int
+  isFounderOffer      Boolean            @default(false)
+  founderOfferEndDate DateTime?
+  status              SubscriptionStatus @default(ESSAI)
+  trialEndDate        DateTime?
+  currentPeriodStart  DateTime?
+  currentPeriodEnd    DateTime?
+  customMaxEmployees  Int?
+  customMaxSites      Int?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  payments            Payment[]
+}
+
+model Payment {
+  id                  String        @id @default(cuid())
+  subscriptionId      String
+  subscription        Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amount              Int
+  method              PaymentMethod
+  reference           String?
+  paidAt              DateTime      @default(now())
+  periodCoveredStart  DateTime
+  periodCoveredEnd    DateTime
+  recordedById        String
+  createdAt           DateTime      @default(now())
+
+  @@index([subscriptionId, paidAt])
 }
 
 // Compteurs de limitation de débit partagés entre toutes les instances

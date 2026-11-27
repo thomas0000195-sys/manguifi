@@ -9,6 +9,7 @@ import { checkProfilePhoto } from "@/lib/profile";
 import { encryptDataUrl, hashEmail } from "@/lib/crypto";
 import { hashPhone } from "@/lib/phone";
 import { generateMatricule } from "@/lib/matricule";
+import { getAccessState, checkCanAdd } from "@/lib/subscription";
 import { revalidatePath } from "next/cache";
 
 export type ActionState = { error?: string; success?: boolean; id?: string };
@@ -19,6 +20,12 @@ export async function createSiteAction(
 ): Promise<ActionState> {
   const session = await requireSession();
   if (session.role !== "ADMIN") return { error: "Action réservée à l'administrateur." };
+  const siteLimit = checkCanAdd(
+    await getAccessState(session.orgId),
+    "site",
+    await prisma.site.count({ where: { orgId: session.orgId } })
+  );
+  if (siteLimit) return { error: siteLimit };
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
   const latitude = formData.get("latitude") ? Number(formData.get("latitude")) : null;
@@ -200,6 +207,12 @@ export async function createEmployeeAction(
 ): Promise<ActionState> {
   const session = await requireSession();
   if (session.role !== "ADMIN") return { error: "Action réservée à l'administrateur." };
+  const employeeLimit = checkCanAdd(
+    await getAccessState(session.orgId),
+    "employee",
+    await prisma.employee.count({ where: { orgId: session.orgId, status: "ACTIF" } })
+  );
+  if (employeeLimit) return { error: employeeLimit };
   const parsed = employeeSchema.safeParse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
@@ -425,6 +438,13 @@ export async function importEmployeesCsvAction(
       .filter((h): h is string => h !== null)
   );
 
+  // Plafond de la formule : au-delà, les lignes sont ignorées avec un motif clair.
+  const importAccess = await getAccessState(session.orgId);
+  const activeEmployees = await prisma.employee.count({ where: { orgId: session.orgId, status: "ACTIF" } });
+  const importBlocked = checkCanAdd(importAccess, "employee", activeEmployees);
+  if (importBlocked) return { error: importBlocked };
+  const remainingSlots = importAccess.maxEmployees === null ? Infinity : importAccess.maxEmployees - activeEmployees;
+
   let count = 0;
   let skipped = 0;
   const seenInFile = new Set<string>();
@@ -481,6 +501,12 @@ export async function importEmployeesCsvAction(
           ? "Ligne ignorée : coordonnées déjà utilisées."
           : "Doublon dans le fichier.",
       });
+      continue;
+    }
+
+    if (count >= remainingSlots) {
+      skipped++;
+      results.push({ row: rowNumber, firstName, lastName, status: "error", reason: "Limite de la formule atteinte." });
       continue;
     }
 

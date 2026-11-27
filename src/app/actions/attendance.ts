@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
+import { getAccessState, checkCanPunch } from "@/lib/subscription";
 import {
   determineNextPunchType,
   computeConfidence,
@@ -173,6 +174,8 @@ export async function recordPunchAction(input: {
   deviceFingerprint?: string;
 }): Promise<PunchResult> {
   const session = await requireSession();
+  const punchBlocked = checkCanPunch(await getAccessState(session.orgId));
+  if (punchBlocked) return { error: punchBlocked };
   if (!session.employeeId) {
     return { error: "Aucun profil employé n'est associé à ce compte." };
   }
@@ -218,6 +221,8 @@ export async function manualDepartureAction(input: {
   longitude?: number;
 }): Promise<PunchResult> {
   const session = await requireSession();
+  const departureBlocked = checkCanPunch(await getAccessState(session.orgId));
+  if (departureBlocked) return { error: departureBlocked };
   if (!session.employeeId) return { error: "Aucun employé associé à ce compte." };
 
   if (input.latitude == null || input.longitude == null) {
