@@ -208,8 +208,21 @@ export default function ScannerClient({
       positionRef.current = pos;
       setPhase("idle");
     } catch (err) {
+      // Si le navigateur a mémorisé un refus, « Réessayer » ne réaffiche rien :
+      // il faut changer le réglage du site. On le dit explicitement.
+      let blocked = false;
+      try {
+        const status = await navigator.permissions?.query({ name: "geolocation" });
+        blocked = status?.state === "denied";
+      } catch {
+        // API non disponible (anciens navigateurs) : message générique.
+      }
       setPhase("geo-denied");
-      setGeoError(describeGeoError(err));
+      setGeoError(
+        blocked
+          ? "La localisation est bloquée pour ce site sur cet appareil. Suivez les étapes ci-dessous pour la remettre sur « Autoriser », puis touchez Réessayer."
+          : describeGeoError(err)
+      );
     }
   }, []);
 
